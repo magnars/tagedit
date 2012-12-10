@@ -24,12 +24,14 @@
 
 ;;; Code:
 
+;;;###autoload
 (defun tagedit-forward-slurp-tag ()
   (interactive)
   (let* ((current-tag (tagedit--current-tag))
          (next-sibling (tagedit--next-sibling current-tag)))
     (tagedit--move next-sibling (tagedit--inside-end current-tag))))
 
+;;;###autoload
 (defun tagedit-forward-barf-tag ()
   (interactive)
   (let* ((current-tag (tagedit--current-tag))
