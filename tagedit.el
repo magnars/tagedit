@@ -29,7 +29,7 @@
   (interactive)
   (let* ((current-tag (tagedit--current-tag))
          (next-sibling (tagedit--next-sibling current-tag)))
-    (tagedit--move next-sibling (tagedit--inside-end current-tag))))
+    (tagedit--move next-sibling (tagedit--inner-end current-tag))))
 
 ;;;###autoload
 (defun tagedit-forward-barf-tag ()
@@ -37,6 +37,42 @@
   (let* ((current-tag (tagedit--current-tag))
          (last-child (tagedit--last-child current-tag)))
     (tagedit--move last-child (aget current-tag :end))))
+
+(defvar tagedit-expand-one-line-tags t
+  "Should tagedit change one-line tags into multi-line tags?
+This happens when you press newline, newline-and-indent and
+refill-paragraph.")
+
+(defadvice newline (before tagedit-maybe-expand-tag activate)
+  (tagedit--maybe-expand-tag))
+
+(defadvice fill-paragraph (before tagedit-maybe-expand-tag activate)
+  (tagedit--maybe-expand-tag))
+
+(defun tagedit--maybe-expand-tag ()
+  (when (and tagedit-expand-one-line-tags
+             (derived-mode-p 'sgml-mode))
+    (let ((current-tag (tagedit--current-tag)))
+      (when (tagedit--is-one-line-tag current-tag)
+        (tagedit--one->multi-line-tag current-tag)))))
+
+(defun tagedit--is-one-line-tag (tag)
+  (when tag
+    (save-excursion
+      (goto-char (aget tag :beg))
+      (= (line-number-at-pos)
+         (progn
+           (goto-char (aget tag :end))
+           (line-number-at-pos))))))
+
+(defun tagedit--one->multi-line-tag (tag)
+  (save-excursion
+    (goto-char (tagedit--inner-end tag))
+    (let ((end (point)))
+      (insert "\n")
+      (goto-char (tagedit--inner-beg tag))
+      (insert "\n")
+      (indent-region (point) (+ 2 end)))))
 
 (defun tagedit--move (tag pos)
   (save-excursion
@@ -68,22 +104,29 @@
   (when (eq :block (aget tag :type))
     (delete-blank-lines)))
 
-(defun tagedit--inside-end (tag)
+(defun tagedit--inner-beg (tag)
+  (save-excursion
+    (goto-char (aget tag :beg))
+    (forward-list 1)
+    (point)))
+
+(defun tagedit--inner-end (tag)
   (- (aget tag :end)
      (length (aget tag :name))
      3))
 
 (defun tagedit--current-tag ()
-  (save-excursion
-    (let* ((context (tagedit--get-context))
-           (name (sgml-tag-name context))
-           (type (if (looking-back "^\\s *") :block :inline))
-           (beg (sgml-tag-start context))
-           (end (when (sgml-skip-tag-forward 1) (point))))
-      `((:name . ,name)
-        (:type . ,type)
-        (:beg . ,beg)
-        (:end . ,end)))))
+  (ignore-errors
+    (save-excursion
+      (let* ((context (tagedit--get-context))
+             (name (sgml-tag-name context))
+             (type (if (looking-back "^\\s *") :block :inline))
+             (beg (sgml-tag-start context))
+             (end (when (sgml-skip-tag-forward 1) (point))))
+        `((:name . ,name)
+          (:type . ,type)
+          (:beg . ,beg)
+          (:end . ,end))))))
 
 (defun tagedit--get-context ()
   (let ((context (car (sgml-get-context))))

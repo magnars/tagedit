@@ -20,6 +20,27 @@ which incidentally is what I use:
 (define-key html-mode-map (kbd "s-<left>") 'tagedit-forward-barf-tag)
 ```
 
+## Other conveniences
+
+It also expands one-line tags into multi-line tags for you, when you
+press refill-paragraph or newline. Like this:
+
+```html
+<p>My one line tag|</p>
+```
+
+then after `C-j`:
+
+```html
+<p>
+  My one line tag
+  |
+</p>
+```
+
+You can disable this behavior by setting
+`tagedit-expand-one-line-tags` to nil.
+
 ## Todo
 
 Right now the commands only care about tags. Free floating text is
