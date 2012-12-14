@@ -40,11 +40,7 @@
 
 (defvar tagedit-expand-one-line-tags t
   "Should tagedit change one-line tags into multi-line tags?
-This happens when you press newline, newline-and-indent and
-refill-paragraph.")
-
-(defadvice newline (before tagedit-maybe-expand-tag activate)
-  (tagedit--maybe-expand-tag))
+This happens when you press refill-paragraph.")
 
 (defadvice fill-paragraph (before tagedit-maybe-expand-tag activate)
   (tagedit--maybe-expand-tag))

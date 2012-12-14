@@ -23,18 +23,18 @@ which incidentally is what I use:
 ## Other conveniences
 
 It also expands one-line tags into multi-line tags for you, when you
-press refill-paragraph or newline. Like this:
+press refill-paragraph. Like this:
 
 ```html
-<p>My one line tag|</p>
+<p>My one very long text inside a tag that I'd like to refill</p>
 ```
 
-then after `C-j`:
+then after `M-q`:
 
 ```html
 <p>
-  My one line tag
-  |
+  My one very long text inside a tag that
+  I'd like to refill
 </p>
 ```
 
