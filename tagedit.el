@@ -20,7 +20,53 @@
 
 ;;; Commentary:
 
-;; So far there's only tagedit-forward-slurp-tag and -barf-tag
+;; A collection of paredit-like functions for editing in html-mode.
+
+;; ## Functions
+;;
+;; This is it at the moment:
+;;
+;;  - `tagedit-forward-slurp-tag` moves the next sibling into this tag.
+;;  - `tagedit-forward-barf-tag` moves the last child out of this tag.
+;;  - `tagedit-kill-attribute` kills the html attribute at point.
+
+;; ## Setup
+;;
+;; I won't presume to know which keys you want these functions bound to,
+;; so you'll have to set that up for yourself. Here's some example code,
+;; which incidentally is what I use:
+;;
+;; ```cl
+;; (define-key html-mode-map (kbd "s-<right>") 'tagedit-forward-slurp-tag)
+;; (define-key html-mode-map (kbd "s-<left>") 'tagedit-forward-barf-tag)
+;; (define-key html-mode-map (kbd "s-k") 'tagedit-kill-attribute)
+;; ```
+
+;; ## Other conveniences
+;;
+;; It also expands one-line tags into multi-line tags for you, when you
+;; press refill-paragraph. Like this:
+;;
+;; ```html
+;; <p>My one very long text inside a tag that I'd like to refill</p>
+;; ```
+;;
+;; then after `M-q`:
+;;
+;; ```html
+;; <p>
+;;   My one very long text inside a tag that
+;;   I'd like to refill
+;; </p>
+;; ```
+;;
+;; You can disable this behavior by setting
+;; `tagedit-expand-one-line-tags` to nil.
+
+;; ## Todo
+;;
+;; Right now the commands only care about tags. Free floating text is
+;; ignored. My guess is that you'd like to slurp and barf that stuff too.
 
 ;;; Code:
 
@@ -37,6 +83,34 @@
   (let* ((current-tag (tagedit--current-tag))
          (last-child (tagedit--last-child current-tag)))
     (tagedit--move last-child (aget current-tag :end))))
+
+;;;###autoload
+(defun tagedit-kill-attribute ()
+  (interactive)
+  (when (and (tagedit--inside-tag)
+             (not (looking-at ">")))
+    (tagedit--select-attribute)
+    (kill-region (region-beginning) (region-end))
+    (just-one-space)
+    (when (looking-at ">")
+      (delete-char -1))))
+
+(defun tagedit--select-attribute ()
+  (search-forward "\"")
+  (when (nth 3 (syntax-ppss)) ; inside string
+    (forward-char -1)
+    (forward-sexp 1))
+  (set-mark (point))
+  (forward-sexp -1)
+  (search-backward " ")
+  (forward-char 1))
+
+(defun tagedit--inside-tag ()
+  (let ((context (save-excursion (tagedit--get-context))))
+    (and context
+         (> (point) (sgml-tag-start context))
+         (< (point) (sgml-tag-end context)))))
+
 
 (defvar tagedit-expand-one-line-tags t
   "Should tagedit change one-line tags into multi-line tags?
@@ -126,7 +200,7 @@ This happens when you press refill-paragraph.")
 
 (defun tagedit--get-context ()
   (let ((context (car (sgml-get-context))))
-    (when (string= "close" (sgml-tag-type context))
+    (when (and context (string= "close" (sgml-tag-type context)))
       (forward-char 1)
       (sgml-skip-tag-backward 1)
       (forward-char 1)

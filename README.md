@@ -8,6 +8,7 @@ This is it at the moment:
 
  - `tagedit-forward-slurp-tag` moves the next sibling into this tag.
  - `tagedit-forward-barf-tag` moves the last child out of this tag.
+ - `tagedit-kill-attribute` kills the html attribute at point.
 
 ## Setup
 
@@ -18,6 +19,7 @@ which incidentally is what I use:
 ```cl
 (define-key html-mode-map (kbd "s-<right>") 'tagedit-forward-slurp-tag)
 (define-key html-mode-map (kbd "s-<left>") 'tagedit-forward-barf-tag)
+(define-key html-mode-map (kbd "s-k") 'tagedit-kill-attribute)
 ```
 
 ## Other conveniences
