@@ -142,7 +142,7 @@ This happens when you press refill-paragraph.")
       (insert "\n")
       (goto-char (tagedit--inner-beg tag))
       (insert "\n")
-      (indent-region (point) (+ 2 end)))))
+      (indent-region (point) (+ 3 end)))))
 
 (defun tagedit--move (tag pos)
   (save-excursion
