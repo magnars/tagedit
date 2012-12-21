@@ -3,6 +3,7 @@
 ;; Copyright (C) 2012 Magnar Sveen <magnars@gmail.com>
 
 ;; Author: Magnar Sveen <magnars@gmail.com>
+;; Version: 0.1.0
 ;; Keywords: convenience
 
 ;; This program is free software; you can redistribute it and/or
