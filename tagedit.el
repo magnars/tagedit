@@ -76,14 +76,18 @@
   (interactive)
   (let* ((current-tag (tagedit--current-tag))
          (next-sibling (tagedit--next-sibling current-tag)))
-    (tagedit--move next-sibling (tagedit--inner-end current-tag))))
+    (save-excursion
+      (tagedit--move next-sibling (tagedit--inner-end current-tag)))
+    (tagedit--indent (tagedit--current-tag))))
 
 ;;;###autoload
 (defun tagedit-forward-barf-tag ()
   (interactive)
   (let* ((current-tag (tagedit--current-tag))
          (last-child (tagedit--last-child current-tag)))
-    (tagedit--move last-child (aget current-tag :end))))
+    (save-excursion
+     (tagedit--move last-child (aget current-tag :end))
+     (indent-region (aget current-tag :beg) (point)))))
 
 ;;;###autoload
 (defun tagedit-kill-attribute ()
@@ -96,6 +100,10 @@
     (when (looking-at ">")
       (delete-char -1))))
 
+
+(defun tagedit--indent (tag)
+  (indent-region (aget tag :beg)
+                 (aget tag :end)))
 (defun tagedit--select-attribute ()
   (search-forward "\"")
   (when (nth 3 (syntax-ppss)) ; inside string
@@ -146,18 +154,15 @@ This happens when you press refill-paragraph.")
       (indent-region (point) (+ 3 end)))))
 
 (defun tagedit--move (tag pos)
-  (save-excursion
-    (goto-char pos)
-    (let ((blank-lines (looking-at "\n\n"))
-          (contents (tagedit--contents tag)))
-      (save-excursion (tagedit--delete tag))
-      (setq beg (point))
-      (when (eq :block (aget tag :type))
-        (tagedit--just-one-blank-line))
-      (when blank-lines (newline))
-      (insert contents)
-      (when blank-lines (newline))
-      (indent-region beg (point)))))
+  (goto-char pos)
+  (let ((blank-lines (looking-at "\n\n"))
+        (contents (tagedit--contents tag)))
+    (save-excursion (tagedit--delete tag))
+    (when (eq :block (aget tag :type))
+      (tagedit--just-one-blank-line))
+    (when blank-lines (newline))
+    (insert contents)
+    (when blank-lines (newline))))
 
 (defun tagedit--just-one-blank-line ()
   (newline 2)
