@@ -64,11 +64,6 @@
 ;; You can disable this behavior by setting
 ;; `tagedit-expand-one-line-tags` to nil.
 
-;; ## Todo
-;;
-;; Right now the commands only care about tags. Free floating text is
-;; ignored. My guess is that you'd like to slurp and barf that stuff too.
-
 ;;; Code:
 
 ;;;###autoload
@@ -198,11 +193,28 @@ This happens when you press refill-paragraph.")
              (name (sgml-tag-name context))
              (type (if (looking-back "^\\s *") :block :inline))
              (beg (sgml-tag-start context))
-             (end (when (sgml-skip-tag-forward 1) (point))))
+             (end (when (sgml-skip-tag-forward 1) (point)))
+             (self-closing (if (looking-back "/>") :t :f)))
         `((:name . ,name)
           (:type . ,type)
+          (:self-closing . ,self-closing)
           (:beg . ,beg)
           (:end . ,end))))))
+
+(defun tagedit--current-text-node ()
+  (save-excursion
+    (let* ((beg (point))
+           (type (if (looking-back "^\\s *") :block :inline))
+           (end (progn
+                  (search-forward "<")
+                  (forward-char -1)
+                  (skip-syntax-backward " >")
+                  (point))))
+      `((:name . "text-node")
+        (:type . ,type)
+        (:self-closing :t)
+        (:beg . ,beg)
+        (:end . ,end)))))
 
 (defun tagedit--get-context ()
   (let ((context (car (sgml-get-context))))
@@ -223,8 +235,10 @@ This happens when you press refill-paragraph.")
 (defun tagedit--next-sibling (tag)
   (save-excursion
     (goto-char (aget tag :end))
-    (search-forward "<")
-    (tagedit--current-tag)))
+    (skip-syntax-forward " >")
+    (if (looking-at "<")
+        (progn (forward-char 1) (tagedit--current-tag))
+      (tagedit--current-text-node))))
 
 (provide 'tagedit)
 

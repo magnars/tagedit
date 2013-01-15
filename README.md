@@ -43,11 +43,6 @@ then after `M-q`:
 You can disable this behavior by setting
 `tagedit-expand-one-line-tags` to nil.
 
-## Todo
-
-Right now the commands only care about tags. Free floating text is
-ignored. My guess is that you'd like to slurp and barf that stuff too.
-
 ## License
 
 Copyright (C) 2012 Magnar Sveen
