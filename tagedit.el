@@ -90,15 +90,32 @@
   (when (and (tagedit--inside-tag)
              (not (looking-at ">")))
     (tagedit--select-attribute)
-    (kill-region (region-beginning) (region-end))
+    (kill-region (1- (region-beginning)) (region-end))
     (just-one-space)
     (when (looking-at ">")
       (delete-char -1))))
 
+;;;###autoload
+(defun tagedit-toggle-multiline-tag ()
+  (interactive)
+  (let ((current-tag (tagedit--current-tag)))
+    (if (tagedit--is-self-closing current-tag)
+        (message "Can't toggle multiline for self-closing tags.")
+      (if (tagedit--is-one-line-tag current-tag)
+          (tagedit--one->multi-line-tag current-tag)))))
 
 (defun tagedit--indent (tag)
   (indent-region (aget tag :beg)
                  (aget tag :end)))
+
+(defvar tagedit--self-closing-tags
+  '("img" "hr" "br" "input"))
+
+(defun tagedit--is-self-closing (tag)
+  (or (eq :t (aget tag :self-closing))
+      (member (aget tag :name)
+              tagedit--self-closing-tags)))
+
 (defun tagedit--select-attribute ()
   (search-forward "\"")
   (when (nth 3 (syntax-ppss)) ; inside string
