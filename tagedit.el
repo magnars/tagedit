@@ -174,6 +174,8 @@ This happens when you press refill-paragraph.")
       (tagedit--just-one-blank-line))
     (when blank-lines (newline))
     (insert contents)
+    (when (eq :block (aget tag :type))
+      (tagedit--just-one-blank-line))
     (when blank-lines (newline))))
 
 (defun tagedit--just-one-blank-line ()
