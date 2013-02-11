@@ -104,6 +104,31 @@
       (if (tagedit--is-one-line-tag current-tag)
           (tagedit--one->multi-line-tag current-tag)))))
 
+;;;###autoload
+(defun tagedit-raise-tag ()
+  (interactive)
+  (let* ((current (tagedit--current-tag))
+         (contents (tagedit--contents current))
+         (parent (tagedit--parent-tag current)))
+    (save-excursion
+      (tagedit--delete parent)
+      (let ((beg (point)))
+        (insert contents)
+        (indent-region beg (point))))))
+
+;;;###autoload
+(defun tagedit-add-paredit-like-keybindings ()
+  (interactive)
+
+  ;; paredit lookalikes
+  (define-key html-mode-map (kbd "C-<right>") 'tagedit-forward-slurp-tag)
+  (define-key html-mode-map (kbd "C-<left>") 'tagedit-forward-barf-tag)
+  (define-key html-mode-map (kbd "M-r") 'tagedit-raise-tag)
+
+  ;; no paredit equivalents
+  (define-key html-mode-map (kbd "s-k") 'tagedit-kill-attribute)
+  (define-key html-mode-map (kbd "s-<return>") 'tagedit-toggle-multiline-tag))
+
 (defun tagedit--indent (tag)
   (indent-region (aget tag :beg)
                  (aget tag :end)))
@@ -169,7 +194,10 @@ This happens when you press refill-paragraph.")
   (goto-char pos)
   (let ((blank-lines (looking-at "\n\n"))
         (contents (tagedit--contents tag)))
-    (save-excursion (tagedit--delete tag))
+    (save-excursion
+      (tagedit--delete tag)
+      (when (eq :block (aget tag :type))
+        (delete-blank-lines)))
     (when (eq :block (aget tag :type))
       (tagedit--just-one-blank-line))
     (when blank-lines (newline))
@@ -177,6 +205,11 @@ This happens when you press refill-paragraph.")
     (when (eq :block (aget tag :type))
       (tagedit--just-one-blank-line))
     (when blank-lines (newline))))
+
+(defun tagedit--parent-tag (tag)
+  (save-excursion
+    (goto-char (aget tag :beg))
+    (tagedit--current-tag)))
 
 (defun tagedit--just-one-blank-line ()
   (newline 2)
@@ -190,9 +223,7 @@ This happens when you press refill-paragraph.")
 (defun tagedit--delete (tag)
   (goto-char (aget tag :beg))
   (delete-region (aget tag :beg)
-                 (aget tag :end))
-  (when (eq :block (aget tag :type))
-    (delete-blank-lines)))
+                 (aget tag :end)))
 
 (defun tagedit--inner-beg (tag)
   (save-excursion
