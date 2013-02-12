@@ -87,6 +87,20 @@
   (save-excursion (tagedit--ensure-proper-multiline (tagedit--current-tag)))
   (tagedit--indent (tagedit--current-tag)))
 
+;;;###autoload
+(defun tagedit-forward-barf-tag ()
+  (interactive)
+  (save-excursion
+   (let* ((current-tag (tagedit--current-tag))
+          (last-child (tagedit--last-child current-tag)))
+     (if last-child
+         (progn
+           (goto-char (aget last-child :beg))
+           (skip-syntax-backward " >")
+           (tagedit--move-end-tag current-tag (point))))))
+  (save-excursion (tagedit--ensure-proper-multiline (tagedit--current-tag)))
+  (tagedit--indent (tagedit--parent-tag (tagedit--current-tag))))
+
 (defun tagedit--open-self-closing-tag (tag)
   (goto-char (aget tag :end))
   (forward-char -1)
@@ -131,15 +145,6 @@
       (delete-char (- 0 (current-column) 1)) ;; then delete entire line
     (backward-sexp)
     (delete-region (point) (aget tag :end)))) ;; otherwise just the end tag
-
-;;;###autoload
-(defun tagedit-forward-barf-tag ()
-  (interactive)
-  (let* ((current-tag (tagedit--current-tag))
-         (last-child (tagedit--last-child current-tag)))
-    (save-excursion
-     (tagedit--move last-child (aget current-tag :end))
-     (indent-region (aget current-tag :beg) (point)))))
 
 ;;;###autoload
 (defun tagedit-kill-attribute ()
@@ -281,6 +286,12 @@ This happens when you press refill-paragraph.")
   (buffer-substring (aget tag :beg)
                     (aget tag :end)))
 
+(defun tagedit--inner-contents (tag)
+  (if (tagedit--is-self-closing tag)
+      ""
+    (buffer-substring (tagedit--inner-beg tag)
+                      (tagedit--inner-end tag))))
+
 (defun tagedit--delete (tag)
   (goto-char (aget tag :beg))
   (delete-region (aget tag :beg)
@@ -314,7 +325,11 @@ This happens when you press refill-paragraph.")
 
 (defun tagedit--current-text-node ()
   (save-excursion
-    (let* ((beg (point))
+    (let* ((beg (progn
+                  (search-backward ">")
+                  (forward-char 1)
+                  (skip-syntax-forward " >")
+                  (point)))
            (type (if (looking-back "^\\s *") :block :inline))
            (end (progn
                   (search-forward "<")
@@ -338,11 +353,19 @@ This happens when you press refill-paragraph.")
     context))
 
 (defun tagedit--last-child (tag)
-  (save-excursion
-    (goto-char (aget tag :end))
-    (search-backward "</")
-    (search-backward ">")
-    (tagedit--current-tag)))
+  (unless (tagedit--empty-tag tag)
+    (save-excursion
+      (goto-char (aget tag :end))
+      (backward-sexp)
+      (skip-syntax-backward " >")
+      (if (looking-back ">")
+          (progn
+            (backward-char 1)
+            (tagedit--current-tag))
+        (tagedit--current-text-node)))))
+
+(defun tagedit--empty-tag (tag)
+  (equal "" (s-trim (tagedit--inner-contents tag))))
 
 (defun tagedit--looking-at-parents-end-tag (tag)
   (save-excursion
