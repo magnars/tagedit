@@ -93,11 +93,11 @@
   (save-excursion
    (let* ((current-tag (tagedit--current-tag))
           (last-child (tagedit--last-child current-tag)))
-     (if last-child
-         (progn
-           (goto-char (aget last-child :beg))
-           (skip-syntax-backward " >")
-           (tagedit--move-end-tag current-tag (point))))))
+     (if (not last-child)
+         (error "Nothing to barf")
+       (goto-char (aget last-child :beg))
+       (skip-syntax-backward " >")
+       (tagedit--move-end-tag current-tag (point)))))
   (save-excursion (tagedit--ensure-proper-multiline (tagedit--current-tag)))
   (tagedit--indent (tagedit--parent-tag (tagedit--current-tag))))
 
@@ -251,22 +251,6 @@ This happens when you press refill-paragraph.")
       (goto-char (tagedit--inner-beg tag))
       (insert "\n")
       (indent-region (point) (+ 3 end)))))
-
-(defun tagedit--move (tag pos)
-  (goto-char pos)
-  (let ((blank-lines (looking-at "\n\n"))
-        (contents (tagedit--contents tag)))
-    (save-excursion
-      (tagedit--delete tag)
-      (when (eq :block (aget tag :type))
-        (delete-blank-lines)))
-    (when (eq :block (aget tag :type))
-      (tagedit--just-one-blank-line))
-    (when blank-lines (newline))
-    (insert contents)
-    (when (eq :block (aget tag :type))
-      (delete-blank-lines))
-    (when blank-lines (newline))))
 
 (defun tagedit--parent-tag (tag)
   (save-excursion
