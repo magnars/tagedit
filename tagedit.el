@@ -267,8 +267,9 @@ This happens when you press refill-paragraph.")
   (save-excursion
     (goto-char (1- (aget tag :beg)))
     (let ((parent (tagedit--current-tag)))
-      (unless (= (aget parent :beg)
-                 (aget tag :beg))
+      (when (and parent
+                 (not (= (aget parent :beg)
+                         (aget tag :beg))))
         parent))))
 
 (defun tagedit--just-one-blank-line ()
