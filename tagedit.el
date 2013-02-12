@@ -3,8 +3,9 @@
 ;; Copyright (C) 2012 Magnar Sveen <magnars@gmail.com>
 
 ;; Author: Magnar Sveen <magnars@gmail.com>
-;; Version: 0.1.0
+;; Version: 0.2.0
 ;; Keywords: convenience
+;; Package-Requires: ((s "1.3.1") (dash "1.0.3"))
 
 ;; This program is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License
@@ -23,23 +24,46 @@
 
 ;; A collection of paredit-like functions for editing in html-mode.
 
+;; ## Installation
+;;
+;; I highly recommended installing tagedit through elpa.
+;;
+;; It's available on [marmalade](http://marmalade-repo.org/):
+;;
+;;     M-x package-install tagedit
+;;
+;; You can also install the dependencies on your own, and just dump
+;; tagedit in your path somewhere:
+;;
+;;  - <a href="https://github.com/magnars/s.el">s.el</a>
+;;  - <a href="https://github.com/magnars/dash.el">dash.el</a>
+
 ;; ## Functions
 ;;
 ;; This is it at the moment:
 ;;
 ;;  - `tagedit-forward-slurp-tag` moves the next sibling into this tag.
 ;;  - `tagedit-forward-barf-tag` moves the last child out of this tag.
+;;  - `tagedit-raise-tag` replaces the parent tag with this tag.
 ;;  - `tagedit-kill-attribute` kills the html attribute at point.
 
 ;; ## Setup
 ;;
-;; I won't presume to know which keys you want these functions bound to,
-;; so you'll have to set that up for yourself. Here's some example code,
-;; which incidentally is what I use:
+;; If you want tagedit to bind to the same keys as paredit, there's this:
 ;;
 ;; ```cl
-;; (define-key html-mode-map (kbd "s-<right>") 'tagedit-forward-slurp-tag)
-;; (define-key html-mode-map (kbd "s-<left>") 'tagedit-forward-barf-tag)
+;; (eval-after-load "sgml-mode"
+;;   '(progn
+;;      (require 'tagedit)
+;;      (tagedit-add-paredit-like-keybindings)))
+;; ```
+;;
+;; Or you can cherry-pick functions and bind them however you want:
+;;
+;; ```cl
+;; (define-key html-mode-map (kbd "C-<right>") 'tagedit-forward-slurp-tag)
+;; (define-key html-mode-map (kbd "C-<left>") 'tagedit-forward-barf-tag)
+;; (define-key html-mode-map (kbd "M-r") 'tagedit-raise-tag)
 ;; (define-key html-mode-map (kbd "s-k") 'tagedit-kill-attribute)
 ;; ```
 
