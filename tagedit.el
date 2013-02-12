@@ -66,14 +66,67 @@
 
 ;;; Code:
 
+(require 'assoc)
+(require 's)
+
 ;;;###autoload
 (defun tagedit-forward-slurp-tag ()
   (interactive)
+  (when (tagedit--is-self-closing (tagedit--current-tag))
+    (save-excursion
+      (tagedit--open-self-closing-tag (tagedit--current-tag))))
   (let* ((current-tag (tagedit--current-tag))
          (next-sibling (tagedit--next-sibling current-tag)))
     (save-excursion
-      (tagedit--move next-sibling (tagedit--inner-end current-tag)))
+      (tagedit--move-end-tag current-tag (aget next-sibling :end)))
+    (save-excursion
+      (tagedit--ensure-proper-multiline (tagedit--current-tag)))
     (tagedit--indent (tagedit--current-tag))))
+
+(defun tagedit--open-self-closing-tag (tag)
+  (goto-char (aget tag :end))
+  (forward-char -1)
+  (delete-char -1)
+  (forward-char 1)
+  (tagedit--insert-closing-tag tag))
+
+(defun tagedit--ensure-proper-multiline (tag)
+  (when (tagedit--is-multiline tag)
+    (goto-char (aget tag :end))
+    (unless (looking-at "$")
+      (newline))
+    (backward-sexp)
+    (unless (looking-back "^\s*")
+      (newline))
+    (goto-char (aget tag :beg))
+    (unless (looking-back "^\s*")
+      (newline))
+    (forward-sexp)
+    (unless (looking-at "$")
+      (newline))))
+
+(defun tagedit--is-multiline (tag)
+  (not (= (line-number-at-pos (aget tag :beg))
+          (line-number-at-pos (aget tag :end)))))
+
+(defun tagedit--insert-closing-tag (tag)
+  (insert "</" (aget tag :name) ">"))
+
+(defun tagedit--move-end-tag (tag pos)
+  (let ((tag-start-line (line-number-at-pos (point))))
+    (goto-char pos)
+    (save-excursion
+      (tagedit--delete-end-tag tag))
+    (tagedit--insert-closing-tag tag)))
+
+(defun tagedit--delete-end-tag (tag)
+  (goto-char (aget tag :end))
+  (if (save-excursion ;; end tag is alone on line
+        (beginning-of-line)
+        (looking-at (concat "^\s*</" (aget tag :name) ">$")))
+      (delete-char (- 0 (current-column) 1)) ;; then delete entire line
+    (backward-sexp)
+    (delete-region (point) (aget tag :end)))) ;; otherwise just the end tag
 
 ;;;###autoload
 (defun tagedit-forward-barf-tag ()
@@ -203,7 +256,7 @@ This happens when you press refill-paragraph.")
     (when blank-lines (newline))
     (insert contents)
     (when (eq :block (aget tag :type))
-      (tagedit--just-one-blank-line))
+      (delete-blank-lines))
     (when blank-lines (newline))))
 
 (defun tagedit--parent-tag (tag)
@@ -245,7 +298,7 @@ This happens when you press refill-paragraph.")
              (beg (sgml-tag-start context))
              (end (when (sgml-skip-tag-forward 1) (point)))
              (self-closing (if (looking-back "/>") :t :f)))
-        `((:name . ,name)
+        `((:name . ,(if self-closing (s-chop-suffix "/" name) name))
           (:type . ,type)
           (:self-closing . ,self-closing)
           (:beg . ,beg)

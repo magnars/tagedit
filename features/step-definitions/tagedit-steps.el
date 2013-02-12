@@ -2,27 +2,10 @@
 ;; files in this directory whose names end with "-steps.el" will be
 ;; loaded automatically by Ecukes.
 
-(Given "^I have \"\\(.+\\)\"$"
-       (lambda (something)
-         ;; Do something
-         ))
-
-(When "^I have \"\\(.+\\)\"$"
-      (lambda (something)
-        ;; Do something
-        ))
-
-(Then "^I should have \"\\(.+\\)\"$"
-      (lambda (something)
-        ;; Do something
-        ))
-
-(And "^I have \"\\(.+\\)\"$"
-     (lambda (something)
-       ;; Do something
-       ))
-
-(But "^I should not have \"\\(.+\\)\"$"
-     (lambda (something)
-       ;; Do something
-       ))
+(When "^I go to the \\(front\\|end\\) of the word \"\\(.+\\)\"$"
+      (lambda (pos word)
+        (goto-char (point-min))
+        (let ((search (re-search-forward (format "%s" word) nil t))
+              (message "Can not go to character '%s' since it does not exist in the current buffer: %s"))
+          (assert search nil message word (espuds-buffer-contents))
+          (if (string-equal "front" pos) (backward-word)))))

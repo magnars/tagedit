@@ -19,14 +19,17 @@
 (require 'espuds)
 (require 'ert)
 
+(eval-after-load "sgml-mode"
+  '(tagedit-add-paredit-like-keybindings))
 
-(Setup
- ;; Before anything has run
- )
+(Setup)
 
 (Before
- ;; Before each scenario is run
- )
+ (switch-to-buffer
+  (get-buffer-create "tagedit-tests.html"))
+ (erase-buffer)
+ (require 'sgml-mode)
+ (html-mode))
 
 (After
  ;; After each scenario is run

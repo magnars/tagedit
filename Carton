@@ -2,6 +2,8 @@
 
 (package "tagedit" "0.1.0" "A collection of paredit-like functions for editing in html-mode.")
 
+(depends-on "s")
+
 (development
   (depends-on "ecukes")
   (depends-on "espuds"))
