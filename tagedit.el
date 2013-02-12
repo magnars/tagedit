@@ -261,7 +261,7 @@ This happens when you press refill-paragraph.")
 
 (defun tagedit--parent-tag (tag)
   (save-excursion
-    (goto-char (aget tag :beg))
+    (goto-char (1- (aget tag :beg)))
     (tagedit--current-tag)))
 
 (defun tagedit--just-one-blank-line ()
@@ -320,6 +320,7 @@ This happens when you press refill-paragraph.")
         (:end . ,end)))))
 
 (defun tagedit--get-context ()
+  (when (looking-at "<") (forward-char 1))
   (let ((context (car (sgml-get-context))))
     (when (and context (string= "close" (sgml-tag-type context)))
       (forward-char 1)
