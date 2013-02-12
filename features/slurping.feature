@@ -153,3 +153,41 @@ Feature: Slurping
       <li>def</li>
     </div>
     """
+
+  Scenario: Slurp it up, not closest sibling
+    Given I insert:
+    """
+    <div>
+      <div>
+        <ul>
+          <li>abc</li>
+        </ul>
+      </div>
+      <li>def</li>
+    </div>
+    """
+    When I go to the front of the word "ul"
+    And I press "C-<right>"
+    Then I should see:
+    """
+    <div>
+      <div>
+        <ul>
+          <li>abc</li>
+        </ul>
+        <li>def</li>
+      </div>
+    </div>
+    """
+    When I press "C-<right>"
+    Then I should see:
+    """
+    <div>
+      <div>
+        <ul>
+          <li>abc</li>
+          <li>def</li>
+        </ul>
+      </div>
+    </div>
+    """

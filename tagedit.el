@@ -73,15 +73,19 @@
 (defun tagedit-forward-slurp-tag ()
   (interactive)
   (when (tagedit--is-self-closing (tagedit--current-tag))
-    (save-excursion
-      (tagedit--open-self-closing-tag (tagedit--current-tag))))
-  (let* ((current-tag (tagedit--current-tag))
-         (next-sibling (tagedit--next-sibling current-tag)))
-    (save-excursion
-      (tagedit--move-end-tag current-tag (aget next-sibling :end)))
-    (save-excursion
-      (tagedit--ensure-proper-multiline (tagedit--current-tag)))
-    (tagedit--indent (tagedit--current-tag))))
+    (save-excursion (tagedit--open-self-closing-tag (tagedit--current-tag))))
+  (save-excursion
+    (let* ((current-tag (tagedit--current-tag))
+           (next-sibling (tagedit--next-sibling current-tag)))
+      (if next-sibling
+          (tagedit--move-end-tag current-tag (aget next-sibling :end))
+        (let ((parent (tagedit--parent-tag current-tag)))
+          (if (not parent)
+              (error "Nothing to slurp")
+            (goto-char (aget parent :beg))
+            (tagedit-forward-slurp-tag))))))
+  (save-excursion (tagedit--ensure-proper-multiline (tagedit--current-tag)))
+  (tagedit--indent (tagedit--current-tag)))
 
 (defun tagedit--open-self-closing-tag (tag)
   (goto-char (aget tag :end))
@@ -262,7 +266,10 @@ This happens when you press refill-paragraph.")
 (defun tagedit--parent-tag (tag)
   (save-excursion
     (goto-char (1- (aget tag :beg)))
-    (tagedit--current-tag)))
+    (let ((parent (tagedit--current-tag)))
+      (unless (= (aget parent :beg)
+                 (aget tag :beg))
+        parent))))
 
 (defun tagedit--just-one-blank-line ()
   (newline 2)
@@ -336,13 +343,25 @@ This happens when you press refill-paragraph.")
     (search-backward ">")
     (tagedit--current-tag)))
 
+(defun tagedit--looking-at-parents-end-tag (tag)
+  (save-excursion
+    (let ((here (point))
+          (parent (tagedit--parent-tag tag)))
+      (when parent
+        (goto-char (aget parent :end))
+        (backward-sexp)
+        (= here (point))))))
+
 (defun tagedit--next-sibling (tag)
   (save-excursion
     (goto-char (aget tag :end))
     (skip-syntax-forward " >")
-    (if (looking-at "<")
-        (progn (forward-char 1) (tagedit--current-tag))
-      (tagedit--current-text-node))))
+    (unless (eobp)
+      (if (looking-at "<")
+          (unless (tagedit--looking-at-parents-end-tag tag)
+            (forward-char 1)
+            (tagedit--current-tag))
+        (tagedit--current-text-node)))))
 
 (provide 'tagedit)
 
