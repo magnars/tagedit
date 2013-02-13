@@ -3,7 +3,7 @@
 ;; Copyright (C) 2012 Magnar Sveen <magnars@gmail.com>
 
 ;; Author: Magnar Sveen <magnars@gmail.com>
-;; Version: 0.2.0
+;; Version: 1.2.0
 ;; Keywords: convenience
 ;; Package-Requires: ((s "1.3.1") (dash "1.0.3"))
 
@@ -28,7 +28,8 @@
 ;;
 ;; I highly recommended installing tagedit through elpa.
 ;;
-;; It's available on [marmalade](http://marmalade-repo.org/):
+;; It's available on [marmalade](http://marmalade-repo.org/) and
+;; [melpa](http://melpa.milkbox.net/):
 ;;
 ;;     M-x package-install tagedit
 ;;
