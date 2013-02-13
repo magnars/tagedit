@@ -209,7 +209,9 @@
 
   ;; paredit lookalikes
   (define-key html-mode-map (kbd "C-<right>") 'tagedit-forward-slurp-tag)
+  (define-key html-mode-map (kbd "C-)") 'tagedit-forward-slurp-tag)
   (define-key html-mode-map (kbd "C-<left>") 'tagedit-forward-barf-tag)
+  (define-key html-mode-map (kbd "C-}") 'tagedit-forward-barf-tag)
   (define-key html-mode-map (kbd "M-r") 'tagedit-raise-tag)
 
   ;; no paredit equivalents
