@@ -319,6 +319,9 @@ This happens when you press refill-paragraph.")
      (length (aget tag :name))
      3))
 
+(defvar tagedit--self-closing-tag-types
+  '(empty jsp))
+
 (defun tagedit--current-tag ()
   (ignore-errors
     (save-excursion
@@ -326,8 +329,9 @@ This happens when you press refill-paragraph.")
              (name (sgml-tag-name context))
              (type (if (looking-back "^\\s *") :block :inline))
              (beg (sgml-tag-start context))
-             (end (when (sgml-skip-tag-forward 1) (point)))
-             (self-closing (if (looking-back "/>") :t :f)))
+             (end (progn (sgml-skip-tag-forward 1) (point)))
+             (self-closing (if (memq (sgml-tag-type context)
+                                     tagedit--self-closing-tag-types) :t :f)))
         `((:name . ,(if self-closing (s-chop-suffix "/" name) name))
           (:type . ,type)
           (:self-closing . ,self-closing)

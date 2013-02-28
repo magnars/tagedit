@@ -92,6 +92,23 @@ Feature: Slurping
     </div>
     """
 
+  Scenario: Slurp it up, stand-alone tags
+    Given I insert:
+    """
+    <div></div>
+    <hr>
+    <div></div>
+    """
+    When I go to the front of the word "div"
+    And I press "C-<right>"
+    Then I should see:
+    """
+    <div>
+      <hr>
+    </div>
+    <div></div>
+    """
+
   Scenario: Slurp it up, inline to multiline
     Given I insert:
     """
