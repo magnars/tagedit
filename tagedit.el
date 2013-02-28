@@ -127,9 +127,12 @@
   (tagedit--indent (tagedit--parent-tag (tagedit--current-tag))))
 
 (defun tagedit--open-self-closing-tag (tag)
+  (when (sgml-empty-tag-p (aget tag :name))
+    (error "Cannot open empty tag %s." (aget tag :name)))
   (goto-char (aget tag :end))
   (forward-char -1)
-  (delete-char -1)
+  (when (looking-back "/")
+    (delete-char -1))
   (forward-char 1)
   (tagedit--insert-closing-tag tag))
 
