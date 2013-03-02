@@ -109,6 +109,40 @@
 (require 's)
 
 ;;;###autoload
+(defun tagedit-add-paredit-like-keybindings ()
+  (interactive)
+
+  ;; paredit lookalikes
+  (define-key html-mode-map (kbd "C-<right>") 'tagedit-forward-slurp-tag)
+  (define-key html-mode-map (kbd "C-)") 'tagedit-forward-slurp-tag)
+  (define-key html-mode-map (kbd "C-<left>") 'tagedit-forward-barf-tag)
+  (define-key html-mode-map (kbd "C-}") 'tagedit-forward-barf-tag)
+  (define-key html-mode-map (kbd "M-r") 'tagedit-raise-tag)
+
+  (tagedit-add-overriding-keybindings)
+
+  ;; no paredit equivalents
+  (define-key html-mode-map (kbd "s-k") 'tagedit-kill-attribute)
+  (define-key html-mode-map (kbd "s-<return>") 'tagedit-toggle-multiline-tag))
+
+;;;###autoload
+(defun tagedit-add-overriding-keybindings ()
+  (interactive)
+  (define-key html-mode-map (kbd "C-k") 'tagedit-kill)
+  (define-key html-mode-map (kbd "=") 'tagedit-insert-equal)
+  (define-key html-mode-map (kbd "<") 'tagedit-insert-lt))
+
+;;;###autoload
+(defun tagedit-insert-equal ()
+  (interactive)
+  (if (and (not (tagedit--point-inside-string?))
+           (tagedit--point-inside-tag-details?)
+           (looking-back "\\sw"))
+      (progn (insert "=\"\"")
+             (forward-char -1))
+    (self-insert-command 1)))
+
+;;;###autoload
 (defun tagedit-kill ()
   (interactive)
   (if (and (looking-back "<\\sw*")  ;; skip past tagname if inside to avoid mangling the document. Even
@@ -196,25 +230,6 @@
       (let ((beg (point)))
         (insert contents)
         (indent-region beg (point))))))
-
-;;;###autoload
-(defun tagedit-add-paredit-like-keybindings ()
-  (interactive)
-
-  ;; paredit lookalikes
-  (define-key html-mode-map (kbd "C-<right>") 'tagedit-forward-slurp-tag)
-  (define-key html-mode-map (kbd "C-)") 'tagedit-forward-slurp-tag)
-  (define-key html-mode-map (kbd "C-<left>") 'tagedit-forward-barf-tag)
-  (define-key html-mode-map (kbd "C-}") 'tagedit-forward-barf-tag)
-  (define-key html-mode-map (kbd "M-r") 'tagedit-raise-tag)
-
-  ;; override normal commands
-  (define-key html-mode-map (kbd "C-k") 'tagedit-kill)
-
-  ;; no paredit equivalents
-  (define-key html-mode-map (kbd "s-k") 'tagedit-kill-attribute)
-  (define-key html-mode-map (kbd "s-<return>") 'tagedit-toggle-multiline-tag))
-
 
 (defun tagedit--tag-ends-on-this-line? (tag)
   (save-excursion
