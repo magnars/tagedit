@@ -20,15 +20,18 @@
 (require 'ert)
 
 (eval-after-load "sgml-mode"
-  '(tagedit-add-paredit-like-keybindings))
+  '(progn
+     (tagedit-add-paredit-like-keybindings)
+     (tagedit-add-experimental-features)))
 
 (Setup)
 
 (Before
  (switch-to-buffer
   (get-buffer-create "tagedit-tests.html"))
- (erase-buffer)
  (require 'sgml-mode)
+ (te/conclude-tag-edit)
+ (erase-buffer)
  (html-mode))
 
 (After

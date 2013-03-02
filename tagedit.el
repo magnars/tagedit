@@ -129,8 +129,12 @@
 (defun tagedit-add-overriding-keybindings ()
   (interactive)
   (define-key html-mode-map (kbd "C-k") 'tagedit-kill)
-  (define-key html-mode-map (kbd "=") 'tagedit-insert-equal)
-  (define-key html-mode-map (kbd "<") 'tagedit-insert-lt))
+  (define-key html-mode-map (kbd "=") 'tagedit-insert-equal))
+
+;;;###autoload
+(defun tagedit-add-experimental-features ()
+  (define-key html-mode-map (kbd "<") 'tagedit-insert-lt)
+  (define-key html-mode-map (kbd ">") 'tagedit-insert-gt))
 
 ;;;###autoload
 (defun tagedit-insert-equal ()
@@ -140,6 +144,27 @@
            (looking-back "\\sw"))
       (progn (insert "=\"\"")
              (forward-char -1))
+    (self-insert-command 1)))
+
+;;;###autoload
+(defun tagedit-insert-lt ()
+  (interactive)
+  (when (fboundp 'autopair-mode)
+    (autopair-mode -1))
+  (if (or (te/point-inside-string?)
+          (te/point-inside-tag-innards?))
+      (self-insert-command 1)
+    (insert "<></>")
+    (forward-char -1)
+    (te/create-mirror (point) (point))
+    (forward-char -3)
+    (te/create-master (point) (point))))
+
+;;;###autoload
+(defun tagedit-insert-gt ()
+  (interactive)
+  (if (te/point-inside-tag-innards?)
+      (search-forward ">")
     (self-insert-command 1)))
 
 ;;;###autoload
@@ -189,13 +214,13 @@
 (defun tagedit-forward-barf-tag ()
   (interactive)
   (save-excursion
-   (let* ((current-tag (te/current-tag))
-          (last-child (te/last-child current-tag)))
-     (if (not last-child)
-         (error "Nothing to barf")
-       (goto-char (aget last-child :beg))
-       (skip-syntax-backward " >")
-       (te/move-end-tag current-tag (point)))))
+    (let* ((current-tag (te/current-tag))
+           (last-child (te/last-child current-tag)))
+      (if (not last-child)
+          (error "Nothing to barf")
+        (goto-char (aget last-child :beg))
+        (skip-syntax-backward " >")
+        (te/move-end-tag current-tag (point)))))
   (save-excursion (te/ensure-proper-multiline (te/current-tag)))
   (te/indent (te/parent-tag (te/current-tag))))
 
@@ -231,6 +256,110 @@
         (insert contents)
         (indent-region beg (point))))))
 
+
+(defvar te/master nil)
+(defvar te/mirror nil)
+
+(defface te/master-face
+  `((((class color) (background light))
+     (:underline  "#777777"))
+    (((class color) (background dark))
+     (:underline "#777777"))
+    (t (:underline t)))
+  "The face used to highlight master"
+  :group 'tagedit)
+
+(defface te/mirror-face
+  `((((class color) (background light))
+     (:underline  "#777777"))
+    (((class color) (background dark))
+     (:underline "#777777"))
+    (t (:underline t)))
+  "The face used to highlight mirror"
+  :group 'tagedit)
+
+(defun te/delete-mirror ()
+  (when te/mirror
+    (delete-overlay te/mirror)
+    (setq te/mirror nil)))
+
+(defun te/create-mirror (beg end)
+  (te/delete-mirror)
+  (setq te/mirror (make-overlay beg end nil nil t))
+  (overlay-put te/mirror 'priority 100)
+  (overlay-put te/mirror 'face 'te/mirror-face))
+
+(defun te/delete-master ()
+  (when te/master
+    (delete-overlay te/master)
+    (setq te/master nil)))
+
+(defvar te/master-keymap (make-sparse-keymap))
+(define-key te/master-keymap (kbd "TAB") 'tagedit-insert-gt)
+
+(defun te/create-master (beg end)
+  (if (or (< (point) beg)
+          (> (point) end))
+      (error "Point must be inside master region"))
+  (te/delete-master)
+  (setq te/master (make-overlay beg end nil nil t))
+  (overlay-put te/master 'priority 100)
+  (overlay-put te/master 'face 'te/master-face)
+  (overlay-put te/master 'keymap 'te/master-keymap)
+  (overlay-put te/master 'modification-hooks '(te/on-master-modification))
+  (overlay-put te/master 'insert-in-front-hooks '(te/on-master-modification))
+  (overlay-put te/master 'insert-behind-hooks '(te/on-master-modification))
+  (add-hook 'before-revert-hook 'te/conclude-tag-edit nil t)
+  (add-hook 'post-command-hook 'te/post-command-handler nil t))
+
+(defun te/conclude-tag-edit ()
+  (when (and te/mirror te/master (sgml-empty-tag-p (s-trim (te/master-string))))
+    (te/delete-mirror-end-tag))
+  (te/delete-master)
+  (te/delete-mirror)
+  (remove-hook 'before-revert-hook 'te/conclude-tag-edit t)
+  (remove-hook 'post-command-hook 'te/post-command-handler t))
+
+(defun te/delete-mirror-end-tag ()
+  (save-excursion
+    (goto-char (overlay-start te/mirror))
+    (search-backward "<")
+    (te/kill-to (search-forward ">"))))
+
+(defun te/point-is-outside-of-master ()
+  "Is point outside of master?"
+  (or (null te/master)
+      (< (point) (overlay-start te/master))
+      (> (point) (overlay-end te/master))))
+
+(defun te/active-region-is-outside-of-master ()
+  "Is region active and mark outside master?"
+  (and (region-active-p)
+       (or (< (mark) (overlay-start te/master))
+           (> (mark) (overlay-end te/master)))))
+
+(defun te/point-at-tag-name ()
+  (looking-back "<\\sw*"))
+
+(defun te/master-string ()
+  (buffer-substring (overlay-start te/master)
+                    (overlay-end te/master)))
+
+(defun te/post-command-handler ()
+  "Clear all marks if point or region is outside of master"
+  (if (or (te/point-is-outside-of-master)
+          (te/active-region-is-outside-of-master)
+          (not (te/point-at-tag-name)))
+      (te/conclude-tag-edit)))
+
+(defun te/on-master-modification (overlay after? beg end &optional length)
+  (when (and after? (te/point-at-tag-name))
+   (save-excursion
+     (goto-char (overlay-start te/mirror))
+     (delete-char (- (overlay-end te/mirror)
+                     (overlay-start te/mirror)))
+     (insert (te/master-string)))))
+
 (defun te/tag-ends-on-this-line? (tag)
   (save-excursion
     (= (line-number-at-pos)
@@ -255,7 +384,7 @@
 
 (defun te/kill-to-end-of-tag-contents (tag)
   (te/kill-to (goto-char (aget tag :end))
-                    (forward-list -1)))
+              (forward-list -1)))
 
 (defun te/kill-remaining-attributes-on-line ()
   (let ((line (line-number-at-pos)))
@@ -268,6 +397,12 @@
   (let ((tag (te/current-tag)))
     (and tag
          (<= (te/tag-details-beg tag) (point))
+         (<= (point) (te/tag-details-end tag)))))
+
+(defun te/point-inside-tag-innards? ()
+  (let ((tag (te/current-tag)))
+    (and tag
+         (< (aget tag :beg) (point))
          (<= (point) (te/tag-details-end tag)))))
 
 (defun te/tag-details-beg (tag)
@@ -291,8 +426,8 @@
 
 (defun te/kill-to-end-of-string ()
   (te/kill-to
-    (te/move-point-forward-out-of-string)
-    (forward-char -1)))
+   (te/move-point-forward-out-of-string)
+   (forward-char -1)))
 
 (defun te/point-inside-string? ()
   "The char that is the current quote delimiter"
