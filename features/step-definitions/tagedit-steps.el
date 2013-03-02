@@ -2,6 +2,8 @@
 ;; files in this directory whose names end with "-steps.el" will be
 ;; loaded automatically by Ecukes.
 
+(eval-when-compile (require 'cl))
+
 (When "^I go to the \\(front\\|end\\) of the word \"\\(.+\\)\"$"
       (lambda (pos word)
         (goto-char (point-min))

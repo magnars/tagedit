@@ -46,6 +46,10 @@
 ;;  - `tagedit-forward-slurp-tag` moves the next sibling into this tag.
 ;;  - `tagedit-forward-barf-tag` moves the last child out of this tag.
 ;;  - `tagedit-raise-tag` replaces the parent tag with this tag.
+;;  - `tagedit-kill` kills to the end of the line, while preserving the structure.
+;;
+;; Not part of paredit:
+;;
 ;;  - `tagedit-kill-attribute` kills the html attribute at point.
 
 ;; ## Setup
@@ -65,6 +69,7 @@
 ;; (define-key html-mode-map (kbd "C-<right>") 'tagedit-forward-slurp-tag)
 ;; (define-key html-mode-map (kbd "C-<left>") 'tagedit-forward-barf-tag)
 ;; (define-key html-mode-map (kbd "M-r") 'tagedit-raise-tag)
+;; (define-key html-mode-map (kbd "C-k") 'tagedit-kill)
 ;; (define-key html-mode-map (kbd "s-k") 'tagedit-kill-attribute)
 ;; ```
 
@@ -91,8 +96,42 @@
 
 ;;; Code:
 
+;; Vocabulary
+;;
+;; - a tag can be self-closing or consist of an open tag and a closing tag.
+;; - a tag that is not self-closing has contents
+;; - a tag has innards between < and >
+;; - a tag has details between <tag and >
+;;
+;; TODO: fix old methods to use a consistent vocabulary
+
 (require 'assoc)
 (require 's)
+
+;;;###autoload
+(defun tagedit-kill ()
+  (interactive)
+  (if (and (looking-back "<\\sw*")  ;; skip past tagname if inside to avoid mangling the document. Even
+           (looking-at "\\sw"))     ;; better would be to update the closing tag, but that's for
+      (skip-syntax-forward "w"))    ;; another day
+  (let ((current-tag (tagedit--current-tag)))
+    (cond
+     ((looking-at "\\s *$")
+      (kill-line))
+
+     ((tagedit--point-inside-string?)
+      (tagedit--kill-to-end-of-string))
+
+     ((tagedit--point-inside-tag-details?)
+      (if (tagedit--tag-details-ends-on-this-line?)
+          (tagedit--kill-to-end-of-tag-details)
+        (tagedit--kill-remaining-attributes-on-line)))
+
+     ((tagedit--tag-ends-on-this-line? current-tag)
+      (tagedit--kill-to-end-of-tag-contents current-tag))
+
+     (:else (tagedit--kill-remaining-tags-on-line))
+     )))
 
 ;;;###autoload
 (defun tagedit-forward-slurp-tag ()
@@ -125,6 +164,128 @@
        (tagedit--move-end-tag current-tag (point)))))
   (save-excursion (tagedit--ensure-proper-multiline (tagedit--current-tag)))
   (tagedit--indent (tagedit--parent-tag (tagedit--current-tag))))
+
+;;;###autoload
+(defun tagedit-kill-attribute ()
+  (interactive)
+  (when (and (tagedit--inside-tag)
+             (not (looking-at ">")))
+    (tagedit--select-attribute)
+    (kill-region (1- (region-beginning)) (region-end))
+    (just-one-space)
+    (when (looking-at ">")
+      (delete-char -1))))
+
+;;;###autoload
+(defun tagedit-toggle-multiline-tag ()
+  (interactive)
+  (let ((current-tag (tagedit--current-tag)))
+    (if (tagedit--is-self-closing current-tag)
+        (message "Can't toggle multiline for self-closing tags.")
+      (if (tagedit--is-one-line-tag current-tag)
+          (tagedit--one->multi-line-tag current-tag)))))
+
+;;;###autoload
+(defun tagedit-raise-tag ()
+  (interactive)
+  (let* ((current (tagedit--current-tag))
+         (contents (tagedit--contents current))
+         (parent (tagedit--parent-tag current)))
+    (save-excursion
+      (tagedit--delete parent)
+      (let ((beg (point)))
+        (insert contents)
+        (indent-region beg (point))))))
+
+;;;###autoload
+(defun tagedit-add-paredit-like-keybindings ()
+  (interactive)
+
+  ;; paredit lookalikes
+  (define-key html-mode-map (kbd "C-<right>") 'tagedit-forward-slurp-tag)
+  (define-key html-mode-map (kbd "C-)") 'tagedit-forward-slurp-tag)
+  (define-key html-mode-map (kbd "C-<left>") 'tagedit-forward-barf-tag)
+  (define-key html-mode-map (kbd "C-}") 'tagedit-forward-barf-tag)
+  (define-key html-mode-map (kbd "M-r") 'tagedit-raise-tag)
+
+  ;; override normal commands
+  (define-key html-mode-map (kbd "C-k") 'tagedit-kill)
+
+  ;; no paredit equivalents
+  (define-key html-mode-map (kbd "s-k") 'tagedit-kill-attribute)
+  (define-key html-mode-map (kbd "s-<return>") 'tagedit-toggle-multiline-tag))
+
+
+(defun tagedit--tag-ends-on-this-line? (tag)
+  (save-excursion
+    (= (line-number-at-pos)
+       (progn (goto-char (aget tag :end))
+              (forward-list -1)
+              (line-number-at-pos)))))
+
+(defmacro tagedit--kill-to (&rest body)
+  `(let ((beg (point)))
+     ,@body
+     (kill-region beg (point))))
+
+(defun tagedit--kill-remaining-tags-on-line ()
+  (let ((line (line-number-at-pos)))
+    (tagedit--kill-to
+     (while (and (= line (line-number-at-pos))
+                 (not (eolp))
+                 (search-forward-regexp "\\(<\\|$\\)" nil t))
+       (when (looking-back "<")
+         (forward-char -1)
+         (sgml-skip-tag-forward 1))))))
+
+(defun tagedit--kill-to-end-of-tag-contents (tag)
+  (tagedit--kill-to (goto-char (aget tag :end))
+                    (forward-list -1)))
+
+(defun tagedit--kill-remaining-attributes-on-line ()
+  (let ((line (line-number-at-pos)))
+    (tagedit--kill-to
+     (while (and (= line (line-number-at-pos))
+                 (not (looking-at "\\s *$")))
+       (tagedit--goto-end-of-attribute)))))
+
+(defun tagedit--point-inside-tag-details? ()
+  (let ((tag (tagedit--current-tag)))
+    (and tag
+         (<= (tagedit--tag-details-beg tag) (point))
+         (<= (point) (tagedit--tag-details-end tag)))))
+
+(defun tagedit--tag-details-beg (tag)
+  (+ (aget tag :beg) 1 (length (aget tag :name))))
+
+(defun tagedit--tag-details-end (tag)
+  (save-excursion
+    (goto-char (aget tag :beg))
+    (forward-list 1)
+    (if (looking-back "/>")
+        (- (point) 2)
+      (- (point) 1))))
+
+(defun tagedit--tag-details-ends-on-this-line? ()
+  (= (line-number-at-pos)
+     (line-number-at-pos (tagedit--tag-details-end (tagedit--current-tag)))))
+
+(defun tagedit--kill-to-end-of-tag-details ()
+  (tagedit--kill-to
+   (goto-char (tagedit--tag-details-end (tagedit--current-tag)))))
+
+(defun tagedit--kill-to-end-of-string ()
+  (tagedit--kill-to
+    (tagedit--move-point-forward-out-of-string)
+    (forward-char -1)))
+
+(defun tagedit--point-inside-string? ()
+  "The char that is the current quote delimiter"
+  (nth 3 (syntax-ppss)))
+
+(defun tagedit--move-point-forward-out-of-string ()
+  "Move point forward until it exits the current quoted string."
+  (while (tagedit--point-inside-string?) (forward-char)))
 
 (defun tagedit--open-self-closing-tag (tag)
   (when (sgml-empty-tag-p (aget tag :name))
@@ -174,53 +335,6 @@
     (backward-sexp)
     (delete-region (point) (aget tag :end)))) ;; otherwise just the end tag
 
-;;;###autoload
-(defun tagedit-kill-attribute ()
-  (interactive)
-  (when (and (tagedit--inside-tag)
-             (not (looking-at ">")))
-    (tagedit--select-attribute)
-    (kill-region (1- (region-beginning)) (region-end))
-    (just-one-space)
-    (when (looking-at ">")
-      (delete-char -1))))
-
-;;;###autoload
-(defun tagedit-toggle-multiline-tag ()
-  (interactive)
-  (let ((current-tag (tagedit--current-tag)))
-    (if (tagedit--is-self-closing current-tag)
-        (message "Can't toggle multiline for self-closing tags.")
-      (if (tagedit--is-one-line-tag current-tag)
-          (tagedit--one->multi-line-tag current-tag)))))
-
-;;;###autoload
-(defun tagedit-raise-tag ()
-  (interactive)
-  (let* ((current (tagedit--current-tag))
-         (contents (tagedit--contents current))
-         (parent (tagedit--parent-tag current)))
-    (save-excursion
-      (tagedit--delete parent)
-      (let ((beg (point)))
-        (insert contents)
-        (indent-region beg (point))))))
-
-;;;###autoload
-(defun tagedit-add-paredit-like-keybindings ()
-  (interactive)
-
-  ;; paredit lookalikes
-  (define-key html-mode-map (kbd "C-<right>") 'tagedit-forward-slurp-tag)
-  (define-key html-mode-map (kbd "C-)") 'tagedit-forward-slurp-tag)
-  (define-key html-mode-map (kbd "C-<left>") 'tagedit-forward-barf-tag)
-  (define-key html-mode-map (kbd "C-}") 'tagedit-forward-barf-tag)
-  (define-key html-mode-map (kbd "M-r") 'tagedit-raise-tag)
-
-  ;; no paredit equivalents
-  (define-key html-mode-map (kbd "s-k") 'tagedit-kill-attribute)
-  (define-key html-mode-map (kbd "s-<return>") 'tagedit-toggle-multiline-tag))
-
 (defun tagedit--indent (tag)
   (indent-region (aget tag :beg)
                  (aget tag :end)))
@@ -232,6 +346,12 @@
   (or (eq :t (aget tag :self-closing))
       (member (aget tag :name)
               tagedit--self-closing-tags)))
+
+(defun tagedit--goto-end-of-attribute ()
+  (search-forward "\"")
+  (when (nth 3 (syntax-ppss)) ; inside string
+    (forward-char -1)
+    (forward-sexp 1)))
 
 (defun tagedit--select-attribute ()
   (search-forward "\"")

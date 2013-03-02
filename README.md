@@ -24,6 +24,10 @@ This is it at the moment:
  - `tagedit-forward-slurp-tag` moves the next sibling into this tag.
  - `tagedit-forward-barf-tag` moves the last child out of this tag.
  - `tagedit-raise-tag` replaces the parent tag with this tag.
+ - `tagedit-kill` kills to the end of the line, while preserving the structure.
+
+Not part of paredit:
+
  - `tagedit-kill-attribute` kills the html attribute at point.
 
 ## Setup
@@ -43,6 +47,7 @@ Or you can cherry-pick functions and bind them however you want:
 (define-key html-mode-map (kbd "C-<right>") 'tagedit-forward-slurp-tag)
 (define-key html-mode-map (kbd "C-<left>") 'tagedit-forward-barf-tag)
 (define-key html-mode-map (kbd "M-r") 'tagedit-raise-tag)
+(define-key html-mode-map (kbd "C-k") 'tagedit-kill)
 (define-key html-mode-map (kbd "s-k") 'tagedit-kill-attribute)
 ```
 
