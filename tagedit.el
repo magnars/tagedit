@@ -186,11 +186,11 @@
           (te/kill-to-end-of-tag-details)
         (te/kill-remaining-attributes-on-line)))
 
-     ((te/tag-ends-on-this-line? current-tag)
+     ((and (not (te/looking-at-tag current-tag))
+           (te/tag-ends-on-this-line? current-tag))
       (te/kill-to-end-of-tag-contents current-tag))
 
-     (:else (te/kill-remaining-tags-on-line))
-     )))
+     (:else (te/kill-remaining-tags-on-line)))))
 
 ;;;###autoload
 (defun tagedit-forward-slurp-tag ()
@@ -256,6 +256,8 @@
         (insert contents)
         (indent-region beg (point))))))
 
+(defun te/looking-at-tag (tag)
+  (= (point) (aget tag :beg)))
 
 (defvar te/master nil)
 (defvar te/mirror nil)

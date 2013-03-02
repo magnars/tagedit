@@ -104,3 +104,10 @@ Feature: Kill
       def mno
     </div>
     """
+
+  Scenario: Kill a tag
+    Given I insert "abc<div></div>"
+    When I go to the end of the word "abc"
+    And I press "C-k"
+    Then I should see "abc"
+    And I should not see "div"
