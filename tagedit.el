@@ -107,6 +107,7 @@
 
 (require 'assoc)
 (require 's)
+(require 'sgml-mode)
 
 ;;;###autoload
 (defun tagedit-add-paredit-like-keybindings ()
