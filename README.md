@@ -38,7 +38,8 @@ If you want tagedit to bind to the same keys as paredit, there's this:
 (eval-after-load "sgml-mode"
   '(progn
      (require 'tagedit)
-     (tagedit-add-paredit-like-keybindings)))
+     (tagedit-add-paredit-like-keybindings)
+     (add-hook 'html-mode-hook (lambda () (tagedit-mode 1)))))
 ```
 
 Or you can cherry-pick functions and bind them however you want:

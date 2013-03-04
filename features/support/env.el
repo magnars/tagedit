@@ -21,18 +21,19 @@
 
 (eval-after-load "sgml-mode"
   '(progn
-     (tagedit-add-paredit-like-keybindings)
-     (tagedit-add-experimental-features)))
+     (tagedit-add-paredit-like-keybindings)))
 
 (Setup)
 
 (Before
  (switch-to-buffer
   (get-buffer-create "tagedit-tests.html"))
+ (tagedit-disable-experimental-features)
  (require 'sgml-mode)
  (te/conclude-tag-edit)
  (erase-buffer)
- (html-mode))
+ (html-mode)
+ (tagedit-mode 1))
 
 (After
  ;; After each scenario is run

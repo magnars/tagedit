@@ -11,3 +11,7 @@
               (message "Can not go to character '%s' since it does not exist in the current buffer: %s"))
           (assert search nil message word (espuds-buffer-contents))
           (if (string-equal "front" pos) (backward-word)))))
+
+(Given "^I activate tagedit experimental features$"
+       (lambda ()
+         (tagedit-add-experimental-features)))

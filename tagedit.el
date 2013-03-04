@@ -60,17 +60,18 @@
 ;; (eval-after-load "sgml-mode"
 ;;   '(progn
 ;;      (require 'tagedit)
-;;      (tagedit-add-paredit-like-keybindings)))
+;;      (tagedit-add-paredit-like-keybindings)
+;;      (add-hook 'html-mode-hook (lambda () (tagedit-mode 1)))))
 ;; ```
 ;;
 ;; Or you can cherry-pick functions and bind them however you want:
 ;;
 ;; ```cl
-;; (define-key html-mode-map (kbd "C-<right>") 'tagedit-forward-slurp-tag)
-;; (define-key html-mode-map (kbd "C-<left>") 'tagedit-forward-barf-tag)
-;; (define-key html-mode-map (kbd "M-r") 'tagedit-raise-tag)
-;; (define-key html-mode-map (kbd "C-k") 'tagedit-kill)
-;; (define-key html-mode-map (kbd "s-k") 'tagedit-kill-attribute)
+;; (define-key tagedit-mode-map (kbd "C-<right>") 'tagedit-forward-slurp-tag)
+;; (define-key tagedit-mode-map (kbd "C-<left>") 'tagedit-forward-barf-tag)
+;; (define-key tagedit-mode-map (kbd "M-r") 'tagedit-raise-tag)
+;; (define-key tagedit-mode-map (kbd "C-k") 'tagedit-kill)
+;; (define-key tagedit-mode-map (kbd "s-k") 'tagedit-kill-attribute)
 ;; ```
 
 ;; ## Other conveniences
@@ -114,28 +115,29 @@
   (interactive)
 
   ;; paredit lookalikes
-  (define-key html-mode-map (kbd "C-<right>") 'tagedit-forward-slurp-tag)
-  (define-key html-mode-map (kbd "C-)") 'tagedit-forward-slurp-tag)
-  (define-key html-mode-map (kbd "C-<left>") 'tagedit-forward-barf-tag)
-  (define-key html-mode-map (kbd "C-}") 'tagedit-forward-barf-tag)
-  (define-key html-mode-map (kbd "M-r") 'tagedit-raise-tag)
-
-  (tagedit-add-overriding-keybindings)
+  (define-key tagedit-mode-map (kbd "C-<right>") 'tagedit-forward-slurp-tag)
+  (define-key tagedit-mode-map (kbd "C-)") 'tagedit-forward-slurp-tag)
+  (define-key tagedit-mode-map (kbd "C-<left>") 'tagedit-forward-barf-tag)
+  (define-key tagedit-mode-map (kbd "C-}") 'tagedit-forward-barf-tag)
+  (define-key tagedit-mode-map (kbd "M-r") 'tagedit-raise-tag)
 
   ;; no paredit equivalents
-  (define-key html-mode-map (kbd "s-k") 'tagedit-kill-attribute)
-  (define-key html-mode-map (kbd "s-<return>") 'tagedit-toggle-multiline-tag))
-
-;;;###autoload
-(defun tagedit-add-overriding-keybindings ()
-  (interactive)
-  (define-key html-mode-map (kbd "C-k") 'tagedit-kill)
-  (define-key html-mode-map (kbd "=") 'tagedit-insert-equal))
+  (define-key tagedit-mode-map (kbd "s-k") 'tagedit-kill-attribute)
+  (define-key tagedit-mode-map (kbd "s-<return>") 'tagedit-toggle-multiline-tag))
 
 ;;;###autoload
 (defun tagedit-add-experimental-features ()
-  (define-key html-mode-map (kbd "<") 'tagedit-insert-lt)
-  (define-key html-mode-map (kbd ">") 'tagedit-insert-gt))
+  (setq tagedit-experimental-features-on? t)
+  (tagedit--maybe-turn-on-tag-editing)
+  (define-key tagedit-mode-map (kbd "<") 'tagedit-insert-lt)
+  (define-key tagedit-mode-map (kbd ">") 'tagedit-insert-gt))
+
+;;;###autoload
+(defun tagedit-disable-experimental-features ()
+  (setq tagedit-experimental-features-on? nil)
+  (tagedit--turn-off-tag-editing)
+  (define-key tagedit-mode-map (kbd "<") nil)
+  (define-key tagedit-mode-map (kbd ">") nil))
 
 ;;;###autoload
 (defun tagedit-insert-equal ()
@@ -160,6 +162,43 @@
     (te/create-mirror (point) (point))
     (forward-char -3)
     (te/create-master (point) (point))))
+
+(defvar tagedit-experimental-features-on? nil)
+
+(defun tagedit--maybe-turn-on-tag-editing ()
+  (when (and tagedit-mode tagedit-experimental-features-on?)
+    (add-hook 'before-change-functions 'te/maybe-start-tag-edit nil t)))
+
+(defun tagedit--turn-off-tag-editing ()
+  (remove-hook 'before-change-functions 'te/maybe-start-tag-edit t))
+
+(defun te/maybe-start-tag-edit (beg &rest ignore)
+  (when (and (not te/master)
+             (not te/mirror)
+             (looking-back "<\\sw*"))
+    (let ((tag (te/current-tag)))
+      (unless (te/is-self-closing tag)
+        (te/create-master (1+ (aget tag :beg))
+                          (te/tag-details-beg tag))
+        (te/create-mirror (- (aget tag :end) (length (aget tag :name)) 1)
+                          (- (aget tag :end) 1))))))
+
+(defvar tagedit-mode-map nil
+  "Keymap for tagedit minor mode.")
+
+(unless tagedit-mode-map
+  (setq tagedit-mode-map (make-sparse-keymap)))
+
+(--each '(("C-k" . tagedit-kill)
+          ("=" . tagedit-insert-equal))
+  (define-key tagedit-mode-map (read-kbd-macro (car it)) (cdr it)))
+
+(define-minor-mode tagedit-mode
+  "Minor mode for pseudo-structurally editing html."
+  nil " Tagedit" tagedit-mode-map
+  (if tagedit-mode
+      (tagedit--maybe-turn-on-tag-editing)
+    (tagedit--turn-off-tag-editing)))
 
 ;;;###autoload
 (defun tagedit-insert-gt ()
@@ -492,13 +531,9 @@
   (indent-region (aget tag :beg)
                  (aget tag :end)))
 
-(defvar te/self-closing-tags
-  '("img" "hr" "br" "input"))
-
 (defun te/is-self-closing (tag)
   (or (eq :t (aget tag :self-closing))
-      (member (aget tag :name)
-              te/self-closing-tags)))
+      (sgml-empty-tag-p (aget tag :name))))
 
 (defun te/goto-end-of-attribute ()
   (search-forward "\"")
