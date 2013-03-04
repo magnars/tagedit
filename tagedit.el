@@ -170,7 +170,7 @@
   (interactive)
   (unless (and (eq last-command 'tagedit-insert-equal)
                (looking-back "\""))
-      (self-insert-command 1)))
+    (self-insert-command 1)))
 
 ;;;###autoload
 (defun tagedit-insert-lt ()
@@ -197,15 +197,15 @@
 
 (defun te/maybe-start-tag-edit (&rest ignore)
   (ignore-errors
-   (when (and (not te/master)
-              (not te/mirror)
-              (looking-back "<\\sw*"))
-     (let ((tag (te/current-tag)))
-       (unless (te/is-self-closing tag)
-         (te/create-master (1+ (aget tag :beg))
-                           (te/tag-details-beg tag))
-         (te/create-mirror (- (aget tag :end) (length (aget tag :name)) 1)
-                           (- (aget tag :end) 1)))))))
+    (when (and (not te/master)
+               (not te/mirror)
+               (te/point-at-tag-name))
+      (let ((tag (te/current-tag)))
+        (te/create-master (1+ (aget tag :beg))
+                          (te/tag-details-beg tag))
+        (unless (te/is-self-closing tag)
+          (te/create-mirror (- (aget tag :end) (length (aget tag :name)) 1)
+                            (- (aget tag :end) 1)))))))
 
 (defvar tagedit-mode-map nil
   "Keymap for tagedit minor mode.")
@@ -232,10 +232,20 @@
       (search-forward ">")
     (self-insert-command 1)))
 
+(defvar te/tags-that-cannot-self-close '("div" "span"))
+
+;;;###autoload
+(defun tagedit-maybe-insert-slash ()
+  (interactive)
+  (let ((tag (te/current-tag)))
+    (if (member (aget tag :name) te/tags-that-cannot-self-close)
+        (message "Cannot self-close %ss." (aget tag :name))
+      (self-insert-command 1))))
+
 ;;;###autoload
 (defun tagedit-kill ()
   (interactive)
-  (if (and (looking-back "<\\sw*")  ;; skip past tagname if inside to avoid mangling the document. Even
+  (if (and (te/point-at-tag-name)   ;; skip past tagname if inside to avoid mangling the document. Even
            (looking-at "\\sw"))     ;; better would be to update the closing tag, but that's for
       (skip-syntax-forward "w"))    ;; another day
   (let ((current-tag (te/current-tag)))
@@ -327,6 +337,9 @@
 (defvar te/master nil)
 (defvar te/mirror nil)
 
+(make-variable-buffer-local 'te/master)
+(make-variable-buffer-local 'te/mirror)
+
 (defface te/master-face
   `((((class color) (background light))
      (:underline  "#777777"))
@@ -363,6 +376,7 @@
 
 (defvar te/master-keymap (make-sparse-keymap))
 (define-key te/master-keymap (kbd "TAB") 'tagedit-insert-gt)
+(define-key te/master-keymap (kbd "/") 'tagedit-maybe-insert-slash)
 
 (defun te/create-master (beg end)
   (if (or (< (point) beg)
@@ -372,7 +386,7 @@
   (setq te/master (make-overlay beg end nil nil t))
   (overlay-put te/master 'priority 100)
   (overlay-put te/master 'face 'te/master-face)
-  (overlay-put te/master 'keymap 'te/master-keymap)
+  (overlay-put te/master 'keymap te/master-keymap)
   (overlay-put te/master 'modification-hooks '(te/on-master-modification))
   (overlay-put te/master 'insert-in-front-hooks '(te/on-master-modification))
   (overlay-put te/master 'insert-behind-hooks '(te/on-master-modification))
@@ -380,7 +394,11 @@
   (add-hook 'post-command-hook 'te/post-command-handler nil t))
 
 (defun te/conclude-tag-edit ()
-  (when (and te/mirror te/master (sgml-empty-tag-p (s-trim (te/master-string))))
+  (when (and te/mirror
+             te/master
+             (save-excursion
+               (goto-char (overlay-start te/master))
+               (te/is-self-closing (te/current-tag))))
     (te/delete-mirror-end-tag))
   (te/delete-master)
   (te/delete-mirror)
@@ -391,7 +409,7 @@
   (save-excursion
     (goto-char (overlay-start te/mirror))
     (search-backward "<")
-    (te/kill-to (search-forward ">"))))
+    (te/delete-to (search-forward ">"))))
 
 (defun te/point-is-outside-of-master ()
   "Is point outside of master?"
@@ -406,7 +424,7 @@
            (> (mark) (overlay-end te/master)))))
 
 (defun te/point-at-tag-name ()
-  (looking-back "<\\sw*"))
+  (looking-back "<[[:lower:][:upper:]:]*"))
 
 (defun te/master-string ()
   (buffer-substring (overlay-start te/master)
@@ -421,11 +439,31 @@
 
 (defun te/on-master-modification (overlay after? beg end &optional length)
   (when (and after? (te/point-at-tag-name))
-   (save-excursion
-     (goto-char (overlay-start te/mirror))
-     (delete-char (- (overlay-end te/mirror)
-                     (overlay-start te/mirror)))
-     (insert (te/master-string)))))
+    (save-excursion
+      (goto-char (overlay-start te/master))
+      (let ((master (te/current-tag)))
+        (if te/mirror
+            (if (te/is-self-closing master)
+                (te/remove-closing-tag-and-mirror master)
+              (te/update-mirror-from-master))
+          (te/insert-closing-tag-with-mirror master))))))
+
+(defun te/insert-closing-tag-with-mirror (master)
+  (let ((name (aget master :name)))
+    (goto-char (aget master :end))
+    (insert "</" name ">")
+    (te/create-mirror (- (point) 1 (length name))
+                      (- (point) 1))))
+
+(defun te/remove-closing-tag-and-mirror (master)
+  (te/delete-mirror-end-tag)
+  (te/delete-mirror))
+
+(defun te/update-mirror-from-master ()
+  (goto-char (overlay-start te/mirror))
+  (delete-char (- (overlay-end te/mirror)
+                  (overlay-start te/mirror)))
+  (insert (te/master-string)))
 
 (defun te/tag-ends-on-this-line? (tag)
   (save-excursion
@@ -438,6 +476,11 @@
   `(let ((beg (point)))
      ,@body
      (kill-region beg (point))))
+
+(defmacro te/delete-to (&rest body)
+  `(let ((beg (point)))
+     ,@body
+     (delete-region beg (point))))
 
 (defun te/kill-remaining-tags-on-line ()
   (let ((line (line-number-at-pos)))
@@ -666,8 +709,8 @@ This happens when you press refill-paragraph.")
              (type (if (looking-back "^\\s *") :block :inline))
              (beg (sgml-tag-start context))
              (end (progn (sgml-skip-tag-forward 1) (point)))
-             (self-closing (if (memq (sgml-tag-type context)
-                                     te/self-closing-tag-types) :t :f)))
+             (self-closing (if (memq (sgml-tag-type context) te/self-closing-tag-types)
+                               :t :f)))
         `((:name . ,(if self-closing (s-chop-suffix "/" name) name))
           (:type . ,type)
           (:self-closing . ,self-closing)
