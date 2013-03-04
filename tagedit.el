@@ -144,10 +144,18 @@
   (interactive)
   (if (and (not (te/point-inside-string?))
            (te/point-inside-tag-details?)
-           (looking-back "\\sw"))
+           (looking-back "\\sw")
+           (not (looking-at "\"")))
       (progn (insert "=\"\"")
              (forward-char -1))
     (self-insert-command 1)))
+
+;;;###autoload
+(defun tagedit-insert-quote ()
+  (interactive)
+  (unless (and (eq last-command 'tagedit-insert-equal)
+               (looking-back "\""))
+      (self-insert-command 1)))
 
 ;;;###autoload
 (defun tagedit-insert-lt ()
@@ -190,7 +198,8 @@
   (setq tagedit-mode-map (make-sparse-keymap)))
 
 (--each '(("C-k" . tagedit-kill)
-          ("=" . tagedit-insert-equal))
+          ("="   . tagedit-insert-equal)
+          ("\""  . tagedit-insert-quote))
   (define-key tagedit-mode-map (read-kbd-macro (car it)) (cdr it)))
 
 (define-minor-mode tagedit-mode
