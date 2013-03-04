@@ -52,6 +52,21 @@ Or you can cherry-pick functions and bind them however you want:
 (define-key html-mode-map (kbd "s-k") 'tagedit-kill-attribute)
 ```
 
+## Experimental tag editing
+
+I am currently working on automatically updating the closing tag when
+you edit the starting tag. It is an experimental feature, since it is quite new
+and I'm sure it breaks some things.
+
+This also inserts `<></>` when you type `<`, and expands it to
+`<div></div>` as you type.
+
+You can turn on experimental features using:
+
+```cl
+(tagedit-add-experimental-features)
+```
+
 ## Other conveniences
 
 It also expands one-line tags into multi-line tags for you, when you

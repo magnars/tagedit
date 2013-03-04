@@ -74,6 +74,21 @@
 ;; (define-key tagedit-mode-map (kbd "s-k") 'tagedit-kill-attribute)
 ;; ```
 
+;; ## Experimental tag editing
+;;
+;; I am currently working on automatically updating the closing tag when
+;; you edit the starting tag. It is an experimental feature, since it is quite new
+;; and I'm sure it breaks some things.
+;;
+;; This also inserts `<></>` when you type `<`, and expands it to
+;; `<div></div>` as you type.
+;;
+;; You can turn on experimental features using:
+;;
+;; ```cl
+;; (tagedit-add-experimental-features)
+;; ```
+
 ;; ## Other conveniences
 ;;
 ;; It also expands one-line tags into multi-line tags for you, when you
@@ -128,14 +143,14 @@
 ;;;###autoload
 (defun tagedit-add-experimental-features ()
   (setq tagedit-experimental-features-on? t)
-  (tagedit--maybe-turn-on-tag-editing)
+  (te/maybe-turn-on-tag-editing)
   (define-key tagedit-mode-map (kbd "<") 'tagedit-insert-lt)
   (define-key tagedit-mode-map (kbd ">") 'tagedit-insert-gt))
 
 ;;;###autoload
 (defun tagedit-disable-experimental-features ()
   (setq tagedit-experimental-features-on? nil)
-  (tagedit--turn-off-tag-editing)
+  (te/turn-off-tag-editing)
   (define-key tagedit-mode-map (kbd "<") nil)
   (define-key tagedit-mode-map (kbd ">") nil))
 
@@ -173,23 +188,24 @@
 
 (defvar tagedit-experimental-features-on? nil)
 
-(defun tagedit--maybe-turn-on-tag-editing ()
+(defun te/maybe-turn-on-tag-editing ()
   (when (and tagedit-mode tagedit-experimental-features-on?)
-    (add-hook 'before-change-functions 'te/maybe-start-tag-edit nil t)))
+    (add-hook 'post-command-hook 'te/maybe-start-tag-edit nil t)))
 
-(defun tagedit--turn-off-tag-editing ()
-  (remove-hook 'before-change-functions 'te/maybe-start-tag-edit t))
+(defun te/turn-off-tag-editing ()
+  (remove-hook 'post-command-hook 'te/maybe-start-tag-edit t))
 
-(defun te/maybe-start-tag-edit (beg &rest ignore)
-  (when (and (not te/master)
-             (not te/mirror)
-             (looking-back "<\\sw*"))
-    (let ((tag (te/current-tag)))
-      (unless (te/is-self-closing tag)
-        (te/create-master (1+ (aget tag :beg))
-                          (te/tag-details-beg tag))
-        (te/create-mirror (- (aget tag :end) (length (aget tag :name)) 1)
-                          (- (aget tag :end) 1))))))
+(defun te/maybe-start-tag-edit (&rest ignore)
+  (ignore-errors
+   (when (and (not te/master)
+              (not te/mirror)
+              (looking-back "<\\sw*"))
+     (let ((tag (te/current-tag)))
+       (unless (te/is-self-closing tag)
+         (te/create-master (1+ (aget tag :beg))
+                           (te/tag-details-beg tag))
+         (te/create-mirror (- (aget tag :end) (length (aget tag :name)) 1)
+                           (- (aget tag :end) 1)))))))
 
 (defvar tagedit-mode-map nil
   "Keymap for tagedit minor mode.")
@@ -206,8 +222,8 @@
   "Minor mode for pseudo-structurally editing html."
   nil " Tagedit" tagedit-mode-map
   (if tagedit-mode
-      (tagedit--maybe-turn-on-tag-editing)
-    (tagedit--turn-off-tag-editing)))
+      (te/maybe-turn-on-tag-editing)
+    (te/turn-off-tag-editing)))
 
 ;;;###autoload
 (defun tagedit-insert-gt ()
