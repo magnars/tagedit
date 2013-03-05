@@ -123,6 +123,7 @@
 
 (require 'assoc)
 (require 's)
+(require 'dash)
 (require 'sgml-mode)
 
 ;;;###autoload
