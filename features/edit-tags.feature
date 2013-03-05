@@ -61,5 +61,11 @@ Feature: Edit tags
     When I type "<c:forEach"
     Then I should see "<c:forEach></c:forEach>"
 
+  Scenario: Don't destroy invalid markup
+    Given I insert "<div id>"
+    When I go to the end of the word "div"
+    And I type "ss"
+    Then I should see "<divss id>"
+
   # editing the end-tag
   # støtte for, evnt disabled ved, multiple cursors
