@@ -22,6 +22,13 @@ Feature: Edit tags
     And I type "s"
     Then I should see "<divs id="abc">def</divs>"
 
+  Scenario: Break up a tag
+    Given I insert "<div id="abc">def</div>"
+    When I go to the end of the word "div"
+    And I press "C-b"
+    And I type " "
+    Then I should see "<di v id="abc">def</di>"
+
   Scenario: Edit self-closing tag
     Given I insert "<input type="text"> abc"
     When I go to the end of the word "input"
