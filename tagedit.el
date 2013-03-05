@@ -191,10 +191,19 @@
 
 (defun te/maybe-turn-on-tag-editing ()
   (when (and tagedit-mode tagedit-experimental-features-on?)
+    (add-hook 'before-change-functions 'te/before-change-handler nil t)
     (add-hook 'post-command-hook 'te/maybe-start-tag-edit nil t)))
 
 (defun te/turn-off-tag-editing ()
+  (remove-hook 'before-change-functions 'te/before-change-handler t)
   (remove-hook 'post-command-hook 'te/maybe-start-tag-edit t))
+
+(defun te/before-change-handler (beg end)
+  (when (and te/master
+             (< beg (overlay-start te/master))
+             (> end (overlay-end te/master)))
+    (te/delete-master)
+    (te/delete-mirror)))
 
 (defun te/maybe-start-tag-edit (&rest ignore)
   (ignore-errors
@@ -425,7 +434,7 @@
            (> (mark) (overlay-end te/master)))))
 
 (defun te/point-at-tag-name ()
-  (looking-back "<[[:lower:][:upper:]:]*"))
+  (looking-back "<[[:lower:][:upper:]0-9:]*"))
 
 (defun te/master-string ()
   (buffer-substring (overlay-start te/master)
@@ -439,14 +448,14 @@
       (te/conclude-tag-edit)))
 
 (defun te/on-master-modification (overlay after? beg end &optional length)
-  (when (and after? (te/point-at-tag-name))
+  (when after?
     (save-excursion
       (goto-char (overlay-start te/master))
       (let ((master (te/current-tag)))
         (if te/mirror
             (if (te/is-self-closing master)
                 (te/remove-closing-tag-and-mirror master)
-              (te/update-mirror-from-master))
+              (te/update-mirror-from-master master))
           (te/insert-closing-tag-with-mirror master))))))
 
 (defun te/insert-closing-tag-with-mirror (master)
@@ -460,11 +469,11 @@
   (te/delete-mirror-end-tag)
   (te/delete-mirror))
 
-(defun te/update-mirror-from-master ()
+(defun te/update-mirror-from-master (master)
   (goto-char (overlay-start te/mirror))
   (delete-char (- (overlay-end te/mirror)
                   (overlay-start te/mirror)))
-  (insert (te/master-string)))
+  (insert (aget master :name)))
 
 (defun te/tag-ends-on-this-line? (tag)
   (save-excursion
