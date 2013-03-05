@@ -211,12 +211,12 @@
                (not te/mirror)
                (te/point-at-tag-name))
       (let ((tag (te/current-tag)))
-        (te/create-master (1+ (aget tag :beg))
-                          (te/tag-details-beg tag))
-        (unless (or (te/is-self-closing tag)
-                    (te/has-no-closing-tag tag))
-          (te/create-mirror (- (aget tag :end) (length (aget tag :name)) 1)
-                            (- (aget tag :end) 1)))))))
+        (unless (te/is-unmatched-open tag)
+         (te/create-master (1+ (aget tag :beg))
+                           (te/tag-details-beg tag))
+         (unless (te/is-self-closing tag)
+           (te/create-mirror (- (aget tag :end) (length (aget tag :name)) 1)
+                             (- (aget tag :end) 1))))))))
 
 (defvar tagedit-mode-map nil
   "Keymap for tagedit minor mode.")
@@ -614,7 +614,7 @@
   (or (eq :t (aget tag :self-closing))
       (sgml-empty-tag-p (aget tag :name))))
 
-(defun te/has-no-closing-tag (tag)
+(defun te/is-unmatched-open (tag)
   (and (= (te/inner-beg tag) (aget tag :end))
        (not (te/is-self-closing tag))))
 
