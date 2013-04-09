@@ -244,7 +244,7 @@
       (search-forward ">")
     (self-insert-command 1)))
 
-(defvar te/tags-that-cannot-self-close '("div" "span"))
+(defvar te/tags-that-cannot-self-close '("div" "span" "script"))
 
 ;;;###autoload
 (defun tagedit-insert-exclamation-mark ()
