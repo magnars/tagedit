@@ -435,7 +435,7 @@
            (> (mark) (overlay-end te/master)))))
 
 (defun te/point-at-tag-name ()
-  (looking-back "<[[:lower:][:upper:]0-9:]*"))
+  (looking-back "<[[:lower:][:upper:]0-9\-:]*"))
 
 (defun te/master-string ()
   (buffer-substring (overlay-start te/master)

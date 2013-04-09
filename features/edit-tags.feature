@@ -67,5 +67,15 @@ Feature: Edit tags
     And I type "ss"
     Then I should see "<divss id>"
 
+  Scenario: Tags with dashes
+    When I type "<abc-def"
+    Then I should see "<abc-def></abc-def>"
+
+  # editing a self-closing tag <something />
+
+  # remove closing tag when adding /
+
   # editing the end-tag
   # støtte for, evnt disabled ved, multiple cursors
+
+  # <!-- -->
