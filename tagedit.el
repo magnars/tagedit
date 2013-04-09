@@ -716,11 +716,19 @@ This happens when you press refill-paragraph.")
 (defvar te/self-closing-tag-types
   '(empty jsp))
 
+(defun te/tag-name-from-context (context)
+  (or (sgml-tag-name context)
+      (save-excursion
+        (forward-char 1)
+        (let ((beg (point)))
+          (search-forward-regexp "[ >]")
+          (buffer-substring-no-properties beg (- (point) 1))))))
+
 (defun te/current-tag ()
   (ignore-errors
     (save-excursion
       (let* ((context (te/get-context))
-             (name (sgml-tag-name context))
+             (name (te/tag-name-from-context context))
              (type (if (looking-back "^\\s *") :block :inline))
              (beg (sgml-tag-start context))
              (end (progn (sgml-skip-tag-forward 1) (point)))

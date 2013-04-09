@@ -105,6 +105,12 @@ Feature: Kill
     </div>
     """
 
+  Scenario: Kill a nameless tag
+    Given I insert "<!-- abc -->"
+    When I go to point "1"
+    And I press "C-k"
+    Then I should not see "abc"
+
   Scenario: Kill a tag
     Given I insert "abc<div></div>"
     When I go to the end of the word "abc"
