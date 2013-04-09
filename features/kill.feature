@@ -117,3 +117,21 @@ Feature: Kill
     And I press "C-k"
     Then I should see "abc"
     And I should not see "div"
+
+  Scenario: Kill stuff outside of tags
+    Given I insert "stuff"
+    When I go to point "3"
+    And I press "C-k"
+    Then I should see "st"
+    And I should not see "uff"
+
+  Scenario: Kill stuff outside of tags, part 2
+    Given I insert:
+    """
+    stuff <p>hello
+      there
+    </p> whee
+    """
+    When I go to point "3"
+    And I press "C-k"
+    Then I should see "st whee"

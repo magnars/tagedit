@@ -212,11 +212,11 @@
                (te/point-at-tag-name))
       (let ((tag (te/current-tag)))
         (unless (te/is-unmatched-open tag)
-         (te/create-master (1+ (aget tag :beg))
-                           (te/tag-details-beg tag))
-         (unless (te/is-self-closing tag)
-           (te/create-mirror (- (aget tag :end) (length (aget tag :name)) 1)
-                             (- (aget tag :end) 1))))))))
+          (te/create-master (1+ (aget tag :beg))
+                            (te/tag-details-beg tag))
+          (unless (te/is-self-closing tag)
+            (te/create-mirror (- (aget tag :end) (length (aget tag :name)) 1)
+                              (- (aget tag :end) 1))))))))
 
 (defvar tagedit-mode-map nil
   "Keymap for tagedit minor mode.")
@@ -256,9 +256,9 @@
 ;;;###autoload
 (defun tagedit-kill ()
   (interactive)
-  (if (and (te/point-at-tag-name)   ;; skip past tagname if inside to avoid mangling the document. Even
-           (looking-at "\\sw"))     ;; better would be to update the closing tag, but that's for
-      (skip-syntax-forward "w"))    ;; another day
+  (when (and (te/point-at-tag-name) ;; skip past tagname if inside to avoid mangling the document. Even
+             (looking-at "\\sw"))   ;; better would be to update the closing tag, but that's for
+    (skip-syntax-forward "w"))      ;; another day
   (let ((current-tag (te/current-tag)))
     (cond
      ((looking-at "\\s *$")
@@ -272,7 +272,8 @@
           (te/kill-to-end-of-tag-details)
         (te/kill-remaining-attributes-on-line)))
 
-     ((and (not (te/looking-at-tag current-tag))
+     ((and current-tag
+           (not (te/looking-at-tag current-tag))
            (te/tag-ends-on-this-line? current-tag))
       (te/kill-to-end-of-tag-contents current-tag))
 
