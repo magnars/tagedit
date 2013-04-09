@@ -71,11 +71,17 @@ Feature: Edit tags
     When I type "<abc-def"
     Then I should see "<abc-def></abc-def>"
 
+  Scenario: HTML comments
+    When I type "<!abc"
+    Then I should see "<!-- abc -->"
+    And I should not see "><"
+
   # editing a self-closing tag <something />
 
   # remove closing tag when adding /
+  # add closing tag when removing /
 
   # editing the end-tag
-  # støtte for, evnt disabled ved, multiple cursors
+  # support for multiple cursors
 
   # <!-- -->

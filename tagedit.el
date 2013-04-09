@@ -226,6 +226,7 @@
 
 (--each '(("C-k" . tagedit-kill)
           ("="   . tagedit-insert-equal)
+          ("!"   . tagedit-insert-exclamation-mark)
           ("\""  . tagedit-insert-quote))
   (define-key tagedit-mode-map (read-kbd-macro (car it)) (cdr it)))
 
@@ -244,6 +245,18 @@
     (self-insert-command 1)))
 
 (defvar te/tags-that-cannot-self-close '("div" "span"))
+
+;;;###autoload
+(defun tagedit-insert-exclamation-mark ()
+  (interactive)
+  (if (and (looking-back "<")
+           (looking-at "></>"))
+      (progn
+        (te/delete-mirror-end-tag)
+        (te/conclude-tag-edit)
+        (insert "!--  --")
+        (forward-char -3))
+    (self-insert-command 1)))
 
 ;;;###autoload
 (defun tagedit-maybe-insert-slash ()
