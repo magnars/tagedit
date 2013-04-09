@@ -348,14 +348,15 @@
 ;;;###autoload
 (defun tagedit-splice-tag ()
   (interactive)
-  (let* ((beg (point))
-         (current (te/current-tag))
+  (let* ((current (te/current-tag))
          (parent (te/parent-tag current))
+         (parent-inner-beg (te/inner-beg parent))
+         (parent-inner-end (te/inner-end parent))
          (parent-inner-contents (te/inner-contents parent)))
     (save-excursion
       (te/delete parent)
       (insert parent-inner-contents)
-      (indent-region beg (point)))))
+      (indent-region parent-inner-beg parent-inner-end))))
 
 (defun te/looking-at-tag (tag)
   (= (point) (aget tag :beg)))
