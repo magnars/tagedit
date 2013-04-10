@@ -88,6 +88,24 @@ then after `M-q`:
 You can disable this behavior by setting
 `tagedit-expand-one-line-tags` to nil.
 
+## Contribute
+
+Yes, please do. :-)
+
+All changes must be accompanied by feature tests.
+They are written in [Ecukes](http://ecukes.info), a Cucumber for Emacs.
+
+To fetch the test dependencies, install
+[carton](https://github.com/rejeep/carton) if you haven't already,
+then:
+
+    $ cd /path/to/expand-region
+    $ carton
+
+Run the tests with:
+
+    $ ./run-tests.sh
+
 ## License
 
 Copyright (C) 2012 Magnar Sveen
