@@ -45,7 +45,8 @@
 ;;
 ;;  - `tagedit-forward-slurp-tag` moves the next sibling into this tag.
 ;;  - `tagedit-forward-barf-tag` moves the last child out of this tag.
-;;  - `tagedit-raise-tag` replaces the parent tag with this tag.
+;;  - `tagedit-raise-tag` removes the parent tag, keeping all its children.
+;;  - `tagedit-splice-tag` replaces the parent tag with this tag.
 ;;  - `tagedit-kill` kills to the end of the line, while preserving the structure.
 ;;
 ;; Not part of paredit:
@@ -70,6 +71,7 @@
 ;; (define-key tagedit-mode-map (kbd "C-<right>") 'tagedit-forward-slurp-tag)
 ;; (define-key tagedit-mode-map (kbd "C-<left>") 'tagedit-forward-barf-tag)
 ;; (define-key tagedit-mode-map (kbd "M-r") 'tagedit-raise-tag)
+;; (define-key tagedit-mode-map (kbd "M-s") 'tagedit-splice-tag)
 ;; (define-key tagedit-mode-map (kbd "C-k") 'tagedit-kill)
 ;; (define-key tagedit-mode-map (kbd "s-k") 'tagedit-kill-attribute)
 ;; ```
@@ -136,6 +138,7 @@
   (define-key tagedit-mode-map (kbd "C-<left>") 'tagedit-forward-barf-tag)
   (define-key tagedit-mode-map (kbd "C-}") 'tagedit-forward-barf-tag)
   (define-key tagedit-mode-map (kbd "M-r") 'tagedit-raise-tag)
+  (define-key tagedit-mode-map (kbd "M-s") 'tagedit-splice-tag)
 
   ;; no paredit equivalents
   (define-key tagedit-mode-map (kbd "s-k") 'tagedit-kill-attribute)
@@ -355,6 +358,19 @@
       (let ((beg (point)))
         (insert contents)
         (indent-region beg (point))))))
+
+;;;###autoload
+(defun tagedit-splice-tag ()
+  (interactive)
+  (let* ((current (te/current-tag))
+         (parent (te/parent-tag current))
+         (parent-inner-beg (te/inner-beg parent))
+         (parent-inner-end (te/inner-end parent))
+         (parent-inner-contents (te/inner-contents parent)))
+    (save-excursion
+      (te/delete parent)
+      (insert parent-inner-contents)
+      (indent-region parent-inner-beg parent-inner-end))))
 
 (defun te/looking-at-tag (tag)
   (= (point) (aget tag :beg)))
