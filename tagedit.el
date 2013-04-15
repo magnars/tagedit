@@ -261,7 +261,8 @@
 (defun tagedit-maybe-insert-slash ()
   (interactive)
   (let ((tag (te/current-tag)))
-    (if (member (aget tag :name) te/tags-that-cannot-self-close)
+    (if (and (member (aget tag :name) te/tags-that-cannot-self-close)
+             (looking-at ">"))
         (message "Cannot self-close %ss." (aget tag :name))
       (self-insert-command 1))))
 

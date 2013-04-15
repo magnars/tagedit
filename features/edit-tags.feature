@@ -78,6 +78,10 @@ Feature: Edit tags
     When I type "<div/"
     Then I should see "<div></div>"
 
+  Scenario: Do not allow self-closing divs
+    When I type "<div uri=/"
+    Then I should see "<div uri="/"></div>"
+
   Scenario: Do not allow self-closing spans
     When I type "<span/"
     Then I should see "<span></span>"
