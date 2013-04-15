@@ -182,10 +182,9 @@
           (te/point-inside-tag-innards?))
       (self-insert-command 1)
     (insert "<></>")
-    (forward-char -1)
-    (te/create-mirror (point) (point))
-    (forward-char -3)
-    (te/create-master (point) (point))))
+    (te/create-mirror (- (point) 3) (point))
+    (forward-char -4)
+    (te/create-master (- (point) 1) (+ (point) 1))))
 
 (defvar tagedit-experimental-features-on? nil)
 
@@ -212,11 +211,11 @@
                (te/point-at-tag-name))
       (let ((tag (te/current-tag)))
         (unless (te/is-unmatched-open tag)
-          (te/create-master (1+ (aget tag :beg))
-                            (te/tag-details-beg tag))
+          (te/create-master (aget tag :beg)
+                            (te/inner-beg tag))
           (unless (te/is-self-closing tag)
-            (te/create-mirror (- (aget tag :end) (length (aget tag :name)) 1)
-                              (- (aget tag :end) 1))))))))
+            (te/create-mirror (te/inner-end tag)
+                              (aget tag :end))))))))
 
 (defvar tagedit-mode-map nil
   "Keymap for tagedit minor mode.")
@@ -408,7 +407,7 @@
           (> (point) end))
       (error "Point must be inside master region"))
   (te/delete-master)
-  (setq te/master (make-overlay beg end nil nil t))
+  (setq te/master (make-overlay beg end nil t nil))
   (overlay-put te/master 'priority 100)
   (overlay-put te/master 'face 'te/master-face)
   (overlay-put te/master 'keymap te/master-keymap)
@@ -431,10 +430,8 @@
   (remove-hook 'post-command-hook 'te/post-command-handler t))
 
 (defun te/delete-mirror-end-tag ()
-  (save-excursion
-    (goto-char (overlay-start te/mirror))
-    (search-backward "<")
-    (te/delete-to (search-forward ">"))))
+  (delete-region (overlay-start te/mirror)
+                 (overlay-end te/mirror)))
 
 (defun te/point-is-outside-of-master ()
   "Is point outside of master?"
@@ -449,7 +446,7 @@
            (> (mark) (overlay-end te/master)))))
 
 (defun te/point-at-tag-name ()
-  (looking-back "<[[:lower:][:upper:]0-9\-:]*"))
+  (looking-back "<[[:lower:][:upper:]0-9\-:]*/?"))
 
 (defun te/master-string ()
   (buffer-substring (overlay-start te/master)
@@ -459,7 +456,8 @@
   "Clear all marks if point or region is outside of master"
   (if (or (te/point-is-outside-of-master)
           (te/active-region-is-outside-of-master)
-          (not (te/point-at-tag-name)))
+          (>= (point) (overlay-end te/master))
+          (<= (point) (overlay-start te/master)))
       (te/conclude-tag-edit)))
 
 (defun te/on-master-modification (overlay after? beg end &optional length)
@@ -477,8 +475,8 @@
   (let ((name (aget master :name)))
     (goto-char (aget master :end))
     (insert "</" name ">")
-    (te/create-mirror (- (point) 1 (length name))
-                      (- (point) 1))))
+    (te/create-mirror (- (point) 3 (length name))
+                      (point))))
 
 (defun te/remove-closing-tag-and-mirror (master)
   (te/delete-mirror-end-tag)
@@ -488,7 +486,7 @@
   (goto-char (overlay-start te/mirror))
   (delete-char (- (overlay-end te/mirror)
                   (overlay-start te/mirror)))
-  (insert (aget master :name)))
+  (insert "</" (aget master :name) ">"))
 
 (defun te/tag-ends-on-this-line? (tag)
   (save-excursion

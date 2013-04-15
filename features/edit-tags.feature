@@ -16,6 +16,12 @@ Feature: Edit tags
     Then I should see "<input>"
     And I should not see "</input>"
 
+  Scenario: Jump inside tag with TAB
+    When I type "<div"
+    And I press "TAB"
+    And I type "abc"
+    Then I should see "<div>abc</div>"
+
   Scenario: Edit tag
     Given I insert "<div id="abc">def</div>"
     When I go to the end of the word "div"
@@ -40,14 +46,33 @@ Feature: Edit tags
     Then I should see "<h3/>"
     And I should not see "</h3>"
 
-  # Known bug: reopening a self-closing tag
-  #
-  # Scenario: Opening a tag with />
-  #   Given I insert "<h3/>"
-  #   When I go to the end of the word "h3"
-  #   And I press "C-f"
-  #   And I press "DEL"
-  #   Then I should see "<h3></h3>"
+  Scenario: Closing tag, don't bug out
+    When I type "<h3/"
+    And I press "C-f"
+    And I type " "
+    Then I should not see "</h3>"
+
+  Scenario: Editing a self-closed tag
+    Given I insert "<h2/>"
+    When I go to the end of the word "h2"
+    And I press "DEL"
+    And I type "3"
+    Then I should see "<h3/>"
+    And I should not see "</h3>"
+
+  Scenario: Re-opening a self-closing tag
+    Given I insert "<h3/>"
+    When I go to the end of the word "h3"
+    And I press "C-f"
+    And I press "DEL"
+    Then I should see "<h3></h3>"
+
+  Scenario: Re-opening a self-closing tag, from outside
+    Given I insert "<h3/>"
+    And I press "C-e"
+    And I press "C-b"
+    And I press "DEL"
+    Then I should see "<h3></h3>"
 
   Scenario: Do not allow self-closing divs
     When I type "<div/"
@@ -76,7 +101,11 @@ Feature: Edit tags
     Then I should see "<!-- abc -->"
     And I should not see "><"
 
+  # <!DOCTYPE html>
+
   # editing a self-closing tag <something />
+
+  # removing <></> when backspace on opening <
 
   # remove closing tag when adding /
   # add closing tag when removing /
@@ -84,4 +113,4 @@ Feature: Edit tags
   # editing the end-tag
   # support for multiple cursors
 
-  # <!-- -->
+  # undo
