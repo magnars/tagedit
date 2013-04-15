@@ -101,13 +101,9 @@ Feature: Edit tags
     Then I should see "<abc-def></abc-def>"
 
   Scenario: HTML comments
-    When I type "<!abc"
+    When I type "<!-- abc --"
     Then I should see "<!-- abc -->"
     And I should not see "><"
-
-  # <!DOCTYPE html>
-
-  # editing a self-closing tag <something />
 
   # removing <></> when backspace on opening <
 

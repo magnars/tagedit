@@ -248,14 +248,11 @@
 ;;;###autoload
 (defun tagedit-insert-exclamation-mark ()
   (interactive)
-  (if (and (looking-back "<")
-           (looking-at "></>"))
-      (progn
-        (te/delete-mirror-end-tag)
-        (te/conclude-tag-edit)
-        (insert "!--  --")
-        (forward-char -3))
-    (self-insert-command 1)))
+  (when (and (looking-back "<")
+             (looking-at "></>"))
+    (te/delete-mirror-end-tag)
+    (te/conclude-tag-edit))
+  (self-insert-command 1))
 
 ;;;###autoload
 (defun tagedit-maybe-insert-slash ()
