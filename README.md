@@ -70,6 +70,7 @@ You can turn on experimental features using:
 ## Other experimental features
 
 - pressing `.` inside a tag will add a class-attribute, or expand the current one
+- similarily, pressing `#` inside will add an id-attribute, or select the current one
 
 ## Other conveniences
 

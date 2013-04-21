@@ -148,6 +148,7 @@
   (define-key tagedit-mode-map (kbd "<") 'tagedit-insert-lt)
   (define-key tagedit-mode-map (kbd ">") 'tagedit-insert-gt)
   (define-key tagedit-mode-map (kbd ".") 'tagedit-insert-dot)
+  (define-key tagedit-mode-map (kbd "#") 'tagedit-insert-hash)
   )
 
 ;;;###autoload
@@ -190,20 +191,39 @@
     (te/create-master (point) (point))))
 
 ;;;###autoload
+(defun tagedit-insert-hash ()
+  (interactive)
+  (if (te/eligible-for-auto-attribute-insert?)
+      (if (te/has-attribute "id" (te/current-tag))
+          (te/mark-current-id-attribute)
+        (te/insert-attribute "id"))
+    (self-insert-command 1)))
+
+;;;###autoload
 (defun tagedit-insert-dot ()
   (interactive)
-  (if (and (te/point-inside-tag-innards?)
-           (not (te/point-inside-string?))
-           (not (te/point-inside-comment?)))
+  (if (te/eligible-for-auto-attribute-insert?)
       (if (te/has-attribute "class" (te/current-tag))
           (te/expand-current-class-attribute)
-        (te/insert-class-attribute))
+        (te/insert-attribute "class"))
     (self-insert-command 1)))
+
+(defun te/eligible-for-auto-attribute-insert? ()
+  (and (te/point-inside-tag-innards?)
+       (not (te/point-inside-string?))
+       (not (te/point-inside-comment?))))
 
 (defun te/expand-current-class-attribute ()
   (te/goto-attribute-end "class" (te/current-tag))
   (unless (looking-back " ")
     (insert " ")))
+
+(defun te/mark-current-id-attribute ()
+  (te/goto-attribute-end "id" (te/current-tag))
+  (set-mark (point))
+  (forward-char 1)
+  (backward-sexp 1)
+  (forward-char 1))
 
 (defun te/has-attribute (attr tag)
   (save-excursion
@@ -216,10 +236,10 @@
   (forward-sexp 1)
   (forward-char -1))
 
-(defun te/insert-class-attribute ()
+(defun te/insert-attribute (name)
   (unless (looking-back " ")
     (insert " "))
-  (insert "class=\"\"")
+  (insert name "=\"\"")
   (unless (looking-at "[ >/]")
     (insert " ")
     (forward-char -1))
