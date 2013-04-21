@@ -1,8 +1,6 @@
 (source "melpa" "http://melpa.milkbox.net/packages/")
 
-(package "tagedit" "0.1.0" "A collection of paredit-like functions for editing in html-mode.")
-
-(depends-on "s")
+(package-file "tagedit.el")
 
 (development
   (depends-on "ecukes")
