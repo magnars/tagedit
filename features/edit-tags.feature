@@ -107,6 +107,16 @@ Feature: Edit tags
     Then I should see "<!-- abc -->"
     And I should not see "><"
 
+  Scenario: Interaction with slurp
+    Given I insert "<li></li>"
+    And I go to point "1"
+    And I type "<ul"
+    Then I should see "<ul></ul><li></li>"
+    When I press "C-<right>"
+    Then I should see "<ul><li></li></ul>"
+    When I type "e"
+    Then I should see "<ule><li></li></ule>"
+
   # removing <></> when backspace on opening <
   # editing a self-closing tag <something />
   # remove closing tag when adding /

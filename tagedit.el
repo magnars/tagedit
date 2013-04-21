@@ -351,6 +351,7 @@
 ;;;###autoload
 (defun tagedit-forward-slurp-tag ()
   (interactive)
+  (te/conclude-tag-edit)
   (when (te/is-self-closing (te/current-tag))
     (save-excursion (te/open-self-closing-tag (te/current-tag))))
   (save-excursion
@@ -369,6 +370,7 @@
 ;;;###autoload
 (defun tagedit-forward-barf-tag ()
   (interactive)
+  (te/conclude-tag-edit)
   (save-excursion
     (let* ((current-tag (te/current-tag))
            (last-child (te/last-child current-tag)))
@@ -394,6 +396,7 @@
 ;;;###autoload
 (defun tagedit-toggle-multiline-tag ()
   (interactive)
+  (te/conclude-tag-edit)
   (let ((current-tag (te/current-tag)))
     (if (te/is-self-closing current-tag)
         (message "Can't toggle multiline for self-closing tags.")
@@ -403,6 +406,7 @@
 ;;;###autoload
 (defun tagedit-raise-tag ()
   (interactive)
+  (te/conclude-tag-edit)
   (let* ((current (te/current-tag))
          (contents (te/contents current))
          (parent (te/parent-tag current)))
