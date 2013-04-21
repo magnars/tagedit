@@ -67,6 +67,10 @@ You can turn on experimental features using:
 (tagedit-add-experimental-features)
 ```
 
+## Other experimental features
+
+- pressing `.` inside a tag will add a class-attribute, or expand the current one
+
 ## Other conveniences
 
 It also expands one-line tags into multi-line tags for you, when you

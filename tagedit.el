@@ -146,7 +146,9 @@
   (setq tagedit-experimental-features-on? t)
   (te/maybe-turn-on-tag-editing)
   (define-key tagedit-mode-map (kbd "<") 'tagedit-insert-lt)
-  (define-key tagedit-mode-map (kbd ">") 'tagedit-insert-gt))
+  (define-key tagedit-mode-map (kbd ">") 'tagedit-insert-gt)
+  (define-key tagedit-mode-map (kbd ".") 'tagedit-insert-dot)
+  )
 
 ;;;###autoload
 (defun tagedit-disable-experimental-features ()
@@ -186,6 +188,42 @@
     (te/create-mirror (point) (point))
     (forward-char -3)
     (te/create-master (point) (point))))
+
+;;;###autoload
+(defun tagedit-insert-dot ()
+  (interactive)
+  (if (and (te/point-inside-tag-innards?)
+           (not (te/point-inside-string?))
+           (not (te/point-inside-comment?)))
+      (if (te/has-attribute "class" (te/current-tag))
+          (te/expand-current-class-attribute)
+        (te/insert-class-attribute))
+    (self-insert-command 1)))
+
+(defun te/expand-current-class-attribute ()
+  (te/goto-attribute-end "class" (te/current-tag))
+  (unless (looking-back " ")
+    (insert " ")))
+
+(defun te/has-attribute (attr tag)
+  (save-excursion
+    (goto-char (aget tag :beg))
+    (search-forward (concat attr "=\"") (aget tag :end) t)))
+
+(defun te/goto-attribute-end (attr tag)
+  (goto-char (aget tag :beg))
+  (search-forward (concat attr "=") (aget tag :end) t)
+  (forward-sexp 1)
+  (forward-char -1))
+
+(defun te/insert-class-attribute ()
+  (unless (looking-back " ")
+    (insert " "))
+  (insert "class=\"\"")
+  (unless (looking-at "[ >/]")
+    (insert " ")
+    (forward-char -1))
+  (forward-char -1))
 
 (defvar tagedit-experimental-features-on? nil)
 
@@ -563,8 +601,10 @@
    (forward-char -1)))
 
 (defun te/point-inside-string? ()
-  "The char that is the current quote delimiter"
   (nth 3 (syntax-ppss)))
+
+(defun te/point-inside-comment? ()
+  (nth 4 (syntax-ppss)))
 
 (defun te/move-point-forward-out-of-string ()
   "Move point forward until it exits the current quoted string."
