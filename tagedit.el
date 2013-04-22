@@ -159,6 +159,125 @@
   (define-key tagedit-mode-map (kbd ">") nil))
 
 ;;;###autoload
+(defun tagedit-insert-gt ()
+  (interactive)
+  (if (te/point-inside-tag-innards?)
+      (search-forward ">")
+    (self-insert-command 1)))
+
+;;;###autoload
+(defun tagedit-insert-exclamation-mark ()
+  (interactive)
+  (when (and (looking-back "<")
+             (looking-at "></>"))
+    (te/delete-mirror-end-tag)
+    (te/conclude-tag-edit))
+  (self-insert-command 1))
+
+;;;###autoload
+(defun tagedit-maybe-insert-slash ()
+  (interactive)
+  (let ((tag (te/current-tag)))
+    (if (and (member (aget tag :name) te/tags-that-cannot-self-close)
+             (looking-at ">"))
+        (message "Cannot self-close %ss." (aget tag :name))
+      (self-insert-command 1))))
+
+;;;###autoload
+(defun tagedit-kill ()
+  (interactive)
+  (when (and (te/point-at-tag-name) ;; skip past tagname if inside to avoid mangling the document. Even
+             (looking-at "\\sw"))   ;; better would be to update the closing tag, but that's for
+    (skip-syntax-forward "w"))      ;; another day
+  (let ((current-tag (te/current-tag)))
+    (cond
+     ((looking-at "\\s *$")
+      (kill-line))
+
+     ((te/point-inside-string?)
+      (te/kill-to-end-of-string))
+
+     ((te/point-inside-tag-details?)
+      (if (te/tag-details-ends-on-this-line?)
+          (te/kill-to-end-of-tag-details)
+        (te/kill-remaining-attributes-on-line)))
+
+     ((and current-tag
+           (not (te/looking-at-tag current-tag))
+           (te/tag-ends-on-this-line? current-tag))
+      (te/kill-to-end-of-tag-contents current-tag))
+
+     (:else (te/kill-remaining-tags-on-line)))))
+
+;;;###autoload
+(defun tagedit-forward-slurp-tag ()
+  (interactive)
+  (te/conclude-tag-edit)
+  (when (te/is-self-closing (te/current-tag))
+    (save-excursion (te/open-self-closing-tag (te/current-tag))))
+  (save-excursion
+    (let* ((current-tag (te/current-tag))
+           (next-sibling (te/next-sibling current-tag)))
+      (if next-sibling
+          (te/move-end-tag current-tag (aget next-sibling :end))
+        (let ((parent (te/parent-tag current-tag)))
+          (if (not parent)
+              (error "Nothing to slurp")
+            (goto-char (aget parent :beg))
+            (tagedit-forward-slurp-tag))))))
+  (save-excursion (te/ensure-proper-multiline (te/current-tag)))
+  (te/indent (te/current-tag)))
+
+;;;###autoload
+(defun tagedit-forward-barf-tag ()
+  (interactive)
+  (te/conclude-tag-edit)
+  (save-excursion
+    (let* ((current-tag (te/current-tag))
+           (last-child (te/last-child current-tag)))
+      (if (not last-child)
+          (error "Nothing to barf")
+        (goto-char (aget last-child :beg))
+        (skip-syntax-backward " >")
+        (te/move-end-tag current-tag (point)))))
+  (save-excursion (te/ensure-proper-multiline (te/current-tag)))
+  (te/indent (te/parent-tag (te/current-tag))))
+
+;;;###autoload
+(defun tagedit-kill-attribute ()
+  (interactive)
+  (when (and (te/point-inside-tag-innards?)
+             (not (looking-at ">")))
+    (te/select-attribute)
+    (kill-region (1- (region-beginning)) (region-end))
+    (just-one-space)
+    (when (looking-at ">")
+      (delete-char -1))))
+
+;;;###autoload
+(defun tagedit-toggle-multiline-tag ()
+  (interactive)
+  (te/conclude-tag-edit)
+  (let ((current-tag (te/current-tag)))
+    (if (te/is-self-closing current-tag)
+        (message "Can't toggle multiline for self-closing tags.")
+      (if (te/is-one-line-tag current-tag)
+          (te/one->multi-line-tag current-tag)))))
+
+;;;###autoload
+(defun tagedit-raise-tag ()
+  (interactive)
+  (te/conclude-tag-edit)
+  (let* ((current (te/current-tag))
+         (contents (te/contents current))
+         (parent (te/parent-tag current)))
+    (save-excursion
+      (te/delete parent)
+      (let ((beg (point)))
+        (insert contents)
+        (indent-region beg (point))))))
+
+;;;###autoload
 (defun tagedit-insert-equal ()
   (interactive)
   (if (and (not (te/point-inside-string?))
@@ -207,6 +326,55 @@
           (te/expand-current-class-attribute)
         (te/insert-attribute "class"))
     (self-insert-command 1)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;;  Extension points for modes
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defvar te/skip-tag-forward-fn (apply-partially 'sgml-skip-tag-forward 1)
+  "Skip to end of tag or matching closing tag if present.")
+
+(defvar te/skip-tag-backward-fn (apply-partially 'sgml-skip-tag-backward 1)
+  "Skip to beginning of tag or matching opening tag if present.")
+
+(defvar te/empty-tag-p-fn 'sgml-empty-tag-p
+  "Return non-nil if TAG-NAME is an implicitly empty tag.")
+
+(defvar te/current-tag-fn 'te-sgml/current-tag
+  "Return information about current tag as an alist:
+
+  ((:name . a)
+   (:self-closing . b)
+   (:beg . c)
+   (:end . d))
+
+  a is the tagname, ie. 'div'
+  b is :t if there is no need for a closing tag, otherwise :f
+  c is the position in the buffer of the opening pointy bracket <
+  d is the position in the buffer of the closing pointy bracket >
+
+  The current tag is defined as the tag we are either:
+
+  1) looking directly at (point is at the opening bracket)
+  2) otherwise it is the tag point is inside
+
+  If point is not inside any tags, returns nil. ")
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun te/skip-tag-forward ()
+  (funcall te/skip-tag-forward-fn))
+
+(defun te/skip-tag-backward ()
+  (funcall te/skip-tag-backward-fn))
+
+(defun te/empty-tag-p (tag-name)
+  (funcall te/empty-tag-p-fn tag-name))
+
+(defun te/current-tag ()
+  (funcall te/current-tag-fn))
 
 (defun te/eligible-for-auto-attribute-insert? ()
   (and (te/point-inside-tag-innards?)
@@ -295,126 +463,7 @@
       (te/maybe-turn-on-tag-editing)
     (te/turn-off-tag-editing)))
 
-;;;###autoload
-(defun tagedit-insert-gt ()
-  (interactive)
-  (if (te/point-inside-tag-innards?)
-      (search-forward ">")
-    (self-insert-command 1)))
-
 (defvar te/tags-that-cannot-self-close '("div" "span" "script"))
-
-;;;###autoload
-(defun tagedit-insert-exclamation-mark ()
-  (interactive)
-  (when (and (looking-back "<")
-             (looking-at "></>"))
-    (te/delete-mirror-end-tag)
-    (te/conclude-tag-edit))
-  (self-insert-command 1))
-
-;;;###autoload
-(defun tagedit-maybe-insert-slash ()
-  (interactive)
-  (let ((tag (te/current-tag)))
-    (if (and (member (aget tag :name) te/tags-that-cannot-self-close)
-             (looking-at ">"))
-        (message "Cannot self-close %ss." (aget tag :name))
-      (self-insert-command 1))))
-
-;;;###autoload
-(defun tagedit-kill ()
-  (interactive)
-  (when (and (te/point-at-tag-name) ;; skip past tagname if inside to avoid mangling the document. Even
-             (looking-at "\\sw"))   ;; better would be to update the closing tag, but that's for
-    (skip-syntax-forward "w"))      ;; another day
-  (let ((current-tag (te/current-tag)))
-    (cond
-     ((looking-at "\\s *$")
-      (kill-line))
-
-     ((te/point-inside-string?)
-      (te/kill-to-end-of-string))
-
-     ((te/point-inside-tag-details?)
-      (if (te/tag-details-ends-on-this-line?)
-          (te/kill-to-end-of-tag-details)
-        (te/kill-remaining-attributes-on-line)))
-
-     ((and current-tag
-           (not (te/looking-at-tag current-tag))
-           (te/tag-ends-on-this-line? current-tag))
-      (te/kill-to-end-of-tag-contents current-tag))
-
-     (:else (te/kill-remaining-tags-on-line)))))
-
-;;;###autoload
-(defun tagedit-forward-slurp-tag ()
-  (interactive)
-  (te/conclude-tag-edit)
-  (when (te/is-self-closing (te/current-tag))
-    (save-excursion (te/open-self-closing-tag (te/current-tag))))
-  (save-excursion
-    (let* ((current-tag (te/current-tag))
-           (next-sibling (te/next-sibling current-tag)))
-      (if next-sibling
-          (te/move-end-tag current-tag (aget next-sibling :end))
-        (let ((parent (te/parent-tag current-tag)))
-          (if (not parent)
-              (error "Nothing to slurp")
-            (goto-char (aget parent :beg))
-            (tagedit-forward-slurp-tag))))))
-  (save-excursion (te/ensure-proper-multiline (te/current-tag)))
-  (te/indent (te/current-tag)))
-
-;;;###autoload
-(defun tagedit-forward-barf-tag ()
-  (interactive)
-  (te/conclude-tag-edit)
-  (save-excursion
-    (let* ((current-tag (te/current-tag))
-           (last-child (te/last-child current-tag)))
-      (if (not last-child)
-          (error "Nothing to barf")
-        (goto-char (aget last-child :beg))
-        (skip-syntax-backward " >")
-        (te/move-end-tag current-tag (point)))))
-  (save-excursion (te/ensure-proper-multiline (te/current-tag)))
-  (te/indent (te/parent-tag (te/current-tag))))
-
-;;;###autoload
-(defun tagedit-kill-attribute ()
-  (interactive)
-  (when (and (te/inside-tag)
-             (not (looking-at ">")))
-    (te/select-attribute)
-    (kill-region (1- (region-beginning)) (region-end))
-    (just-one-space)
-    (when (looking-at ">")
-      (delete-char -1))))
-
-;;;###autoload
-(defun tagedit-toggle-multiline-tag ()
-  (interactive)
-  (te/conclude-tag-edit)
-  (let ((current-tag (te/current-tag)))
-    (if (te/is-self-closing current-tag)
-        (message "Can't toggle multiline for self-closing tags.")
-      (if (te/is-one-line-tag current-tag)
-          (te/one->multi-line-tag current-tag)))))
-
-;;;###autoload
-(defun tagedit-raise-tag ()
-  (interactive)
-  (te/conclude-tag-edit)
-  (let* ((current (te/current-tag))
-         (contents (te/contents current))
-         (parent (te/parent-tag current)))
-    (save-excursion
-      (te/delete parent)
-      (let ((beg (point)))
-        (insert contents)
-        (indent-region beg (point))))))
 
 (defun te/looking-at-tag (tag)
   (= (point) (aget tag :beg)))
@@ -531,7 +580,8 @@
             (if (te/is-self-closing master)
                 (te/remove-closing-tag-and-mirror master)
               (te/update-mirror-from-master master))
-          (te/insert-closing-tag-with-mirror master))))))
+          (unless (te/is-self-closing master)
+            (te/insert-closing-tag-with-mirror master)))))))
 
 (defun te/insert-closing-tag-with-mirror (master)
   (let ((name (aget master :name)))
@@ -575,7 +625,7 @@
                  (search-forward-regexp "\\(<\\|$\\)" nil t))
        (when (looking-back "<")
          (forward-char -1)
-         (sgml-skip-tag-forward 1))))))
+         (te/skip-tag-forward))))))
 
 (defun te/kill-to-end-of-tag-contents (tag)
   (te/kill-to (goto-char (aget tag :end))
@@ -635,7 +685,7 @@
   (while (te/point-inside-string?) (forward-char)))
 
 (defun te/open-self-closing-tag (tag)
-  (when (sgml-empty-tag-p (aget tag :name))
+  (when (te/empty-tag-p (aget tag :name))
     (error "Cannot open empty tag %s." (aget tag :name)))
   (goto-char (aget tag :end))
   (forward-char -1)
@@ -688,7 +738,7 @@
 
 (defun te/is-self-closing (tag)
   (or (eq :t (aget tag :self-closing))
-      (sgml-empty-tag-p (aget tag :name))))
+      (te/empty-tag-p (aget tag :name))))
 
 (defun te/is-unmatched-open (tag)
   (and (= (te/inner-beg tag) (aget tag :end))
@@ -710,13 +760,6 @@
   (search-backward " ")
   (forward-char 1))
 
-(defun te/inside-tag ()
-  (let ((context (save-excursion (te/get-context))))
-    (and context
-         (> (point) (sgml-tag-start context))
-         (< (point) (sgml-tag-end context)))))
-
-
 (defvar tagedit-expand-one-line-tags t
   "Should tagedit change one-line tags into multi-line tags?
 This happens when you press refill-paragraph.")
@@ -725,8 +768,7 @@ This happens when you press refill-paragraph.")
   (te/maybe-expand-tag))
 
 (defun te/maybe-expand-tag ()
-  (when (and tagedit-expand-one-line-tags
-             (derived-mode-p 'sgml-mode))
+  (when (and tagedit-expand-one-line-tags tagedit-mode)
     (let ((current-tag (te/current-tag)))
       (when (te/is-one-line-tag current-tag)
         (te/one->multi-line-tag current-tag)))))
@@ -789,61 +831,23 @@ This happens when you press refill-paragraph.")
      (length (aget tag :name))
      3))
 
-(defvar te/self-closing-tag-types
-  '(empty jsp))
-
-(defun te/tag-name-from-context (context)
-  (or (sgml-tag-name context)
-      (save-excursion
-        (forward-char 1)
-        (let ((beg (point)))
-          (search-forward-regexp "[ >]")
-          (buffer-substring-no-properties beg (- (point) 1))))))
-
-(defun te/current-tag ()
-  (ignore-errors
-    (save-excursion
-      (let* ((context (te/get-context))
-             (name (te/tag-name-from-context context))
-             (type (if (looking-back "^\\s *") :block :inline))
-             (beg (sgml-tag-start context))
-             (end (progn (sgml-skip-tag-forward 1) (point)))
-             (self-closing (if (memq (sgml-tag-type context) te/self-closing-tag-types)
-                               :t :f)))
-        `((:name . ,(if self-closing (s-chop-suffix "/" name) name))
-          (:type . ,type)
-          (:self-closing . ,self-closing)
-          (:beg . ,beg)
-          (:end . ,end))))))
-
 (defun te/current-text-node ()
-  (save-excursion
-    (let* ((beg (progn
-                  (search-backward ">")
-                  (forward-char 1)
-                  (skip-syntax-forward " >")
-                  (point)))
-           (type (if (looking-back "^\\s *") :block :inline))
-           (end (progn
-                  (search-forward "<")
-                  (forward-char -1)
-                  (skip-syntax-backward " >")
-                  (point))))
-      `((:name . "text-node")
-        (:type . ,type)
-        (:self-closing :t)
-        (:beg . ,beg)
-        (:end . ,end)))))
-
-(defun te/get-context ()
-  (when (looking-at "<") (forward-char 1))
-  (let ((context (car (sgml-get-context))))
-    (when (and context (string= "close" (sgml-tag-type context)))
-      (forward-char 1)
-      (sgml-skip-tag-backward 1)
-      (forward-char 1)
-      (setq context (car (sgml-get-context))))
-    context))
+  (unless (te/point-inside-tag-innards?)
+   (save-excursion
+     (let* ((beg (progn
+                   (search-backward ">")
+                   (forward-char 1)
+                   (skip-syntax-forward " >")
+                   (point)))
+            (end (progn
+                   (search-forward "<")
+                   (forward-char -1)
+                   (skip-syntax-backward " >")
+                   (point))))
+       `((:name . "text-node")
+         (:self-closing :t)
+         (:beg . ,beg)
+         (:end . ,end))))))
 
 (defun te/last-child (tag)
   (unless (te/empty-tag tag)
@@ -880,6 +884,48 @@ This happens when you press refill-paragraph.")
             (te/current-tag))
         (te/current-text-node)))))
 
-(provide 'tagedit)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;;  sgml-mode specific functions
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defvar te-sgml/self-closing-tag-types
+  '(empty jsp))
+
+(defun te-sgml/tag-name-from-context (context)
+  (or (sgml-tag-name context)
+      (save-excursion
+        (forward-char 1)
+        (let ((beg (point)))
+          (search-forward-regexp "[ >]")
+          (buffer-substring-no-properties beg (- (point) 1))))))
+
+(defun te-sgml/current-tag ()
+  (ignore-errors
+    (save-excursion
+      (let* ((context (te-sgml/get-context))
+             (name (te-sgml/tag-name-from-context context))
+             (beg (sgml-tag-start context))
+             (end (progn (te/skip-tag-forward) (point)))
+             (self-closing (if (memq (sgml-tag-type context) te-sgml/self-closing-tag-types)
+                               :t :f)))
+        `((:name . ,(if self-closing (s-chop-suffix "/" name) name))
+          (:self-closing . ,self-closing)
+          (:beg . ,beg)
+          (:end . ,end))))))
+
+(defun te-sgml/get-context ()
+  (when (looking-at "<") (forward-char 1))
+  (let ((context (car (sgml-get-context))))
+    (when (and context (string= "close" (sgml-tag-type context)))
+      (forward-char 1)
+      (te/skip-tag-backward)
+      (forward-char 1)
+      (setq context (car (sgml-get-context))))
+    context))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(provide 'tagedit)
 ;;; tagedit.el ends here

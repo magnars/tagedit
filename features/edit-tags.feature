@@ -56,6 +56,7 @@ Feature: Edit tags
     Given I insert "<h2/>"
     When I go to the end of the word "h2"
     And I press "DEL"
+    And I should not see "</"
     And I type "3"
     Then I should see "<h3/>"
     And I should not see "</h3>"
