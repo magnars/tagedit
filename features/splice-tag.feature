@@ -1,6 +1,6 @@
 Feature: Splice tag
 
-  Scenario: Splice tag
+  Scenario: Splice tag, multiline
     Given I insert:
     """
     <div>
@@ -25,3 +25,11 @@ Feature: Splice tag
     <li>abc</li>
     <li>def</li>
     """
+
+  Scenario: Splice tag, inline
+    Given I insert "<div><p>hi</p><p>yo</p> greetings</div>"
+    When I go to the front of the word "p"
+    And I press "M-s"
+    Then I should see "<p>hi</p><p>yo</p> greetings"
+    And I should not see "<div>"
+    And I should not see "</div>"
