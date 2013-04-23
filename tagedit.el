@@ -46,6 +46,7 @@
 ;;  - `tagedit-forward-slurp-tag` moves the next sibling into this tag.
 ;;  - `tagedit-forward-barf-tag` moves the last child out of this tag.
 ;;  - `tagedit-raise-tag` replaces the parent tag with this tag.
+;;  - `tagedit-splice-tag` replaces the parent tag with its contents.
 ;;  - `tagedit-kill` kills to the end of the line, while preserving the structure.
 ;;
 ;; Not part of paredit:
@@ -70,6 +71,7 @@
 ;; (define-key tagedit-mode-map (kbd "C-<right>") 'tagedit-forward-slurp-tag)
 ;; (define-key tagedit-mode-map (kbd "C-<left>") 'tagedit-forward-barf-tag)
 ;; (define-key tagedit-mode-map (kbd "M-r") 'tagedit-raise-tag)
+;; (define-key tagedit-mode-map (kbd "M-s") 'tagedit-splice-tag)
 ;; (define-key tagedit-mode-map (kbd "C-k") 'tagedit-kill)
 ;; (define-key tagedit-mode-map (kbd "s-k") 'tagedit-kill-attribute)
 ;; ```
@@ -136,6 +138,7 @@
   (define-key tagedit-mode-map (kbd "C-<left>") 'tagedit-forward-barf-tag)
   (define-key tagedit-mode-map (kbd "C-}") 'tagedit-forward-barf-tag)
   (define-key tagedit-mode-map (kbd "M-r") 'tagedit-raise-tag)
+  (define-key tagedit-mode-map (kbd "M-s") 'tagedit-splice-tag)
 
   ;; no paredit equivalents
   (define-key tagedit-mode-map (kbd "s-k") 'tagedit-kill-attribute)
@@ -276,6 +279,17 @@
       (let ((beg (point)))
         (insert contents)
         (indent-region beg (point))))))
+
+;;;###autoload
+(defun tagedit-splice-tag ()
+  (interactive)
+  (te/conclude-tag-edit)
+  (let* ((current (te/current-tag))
+         (parent (te/parent-tag current)))
+    (save-excursion
+      (te/delete-end-tag parent)
+      (te/delete-beg-tag parent)
+      (te/indent (te/current-tag)))))
 
 ;;;###autoload
 (defun tagedit-insert-equal ()
@@ -732,9 +746,22 @@
     (backward-sexp)
     (delete-region (point) (aget tag :end)))) ;; otherwise just the end tag
 
+(defun te/delete-beg-tag (tag)
+  (goto-char (aget tag :beg))
+  (forward-sexp)
+  (if (save-excursion ;; beg tag is alone on line
+        (beginning-of-line)
+        (looking-at (concat "^\s*<" (aget tag :name) "[^>]*>$")))
+      (progn ;; then delete entire line
+        (delete-char (- 0 (current-column)))
+        (delete-char 1))
+    (delete-region (aget tag :beg) (point))))
+
 (defun te/indent (tag)
-  (indent-region (aget tag :beg)
-                 (aget tag :end)))
+  (if tag
+      (indent-region (aget tag :beg)
+                     (aget tag :end))
+    (indent-region (point-min) (point-max))))
 
 (defun te/is-self-closing (tag)
   (or (eq :t (aget tag :self-closing))
@@ -833,21 +860,21 @@ This happens when you press refill-paragraph.")
 
 (defun te/current-text-node ()
   (unless (te/point-inside-tag-innards?)
-   (save-excursion
-     (let* ((beg (progn
-                   (search-backward ">")
-                   (forward-char 1)
-                   (skip-syntax-forward " >")
-                   (point)))
-            (end (progn
-                   (search-forward "<")
-                   (forward-char -1)
-                   (skip-syntax-backward " >")
-                   (point))))
-       `((:name . "text-node")
-         (:self-closing :t)
-         (:beg . ,beg)
-         (:end . ,end))))))
+    (save-excursion
+      (let* ((beg (progn
+                    (search-backward ">")
+                    (forward-char 1)
+                    (skip-syntax-forward " >")
+                    (point)))
+             (end (progn
+                    (search-forward "<")
+                    (forward-char -1)
+                    (skip-syntax-backward " >")
+                    (point))))
+        `((:name . "text-node")
+          (:self-closing :t)
+          (:beg . ,beg)
+          (:end . ,end))))))
 
 (defun te/last-child (tag)
   (unless (te/empty-tag tag)
