@@ -164,7 +164,8 @@
 ;;;###autoload
 (defun tagedit-insert-gt ()
   (interactive)
-  (if (te/point-inside-tag-innards?)
+  (if (and (te/point-inside-tag-innards?)
+           (not (te/point-inside-string?)))
       (search-forward ">")
     (self-insert-command 1)))
 
@@ -910,6 +911,15 @@ This happens when you press refill-paragraph.")
             (forward-char 1)
             (te/current-tag))
         (te/current-text-node)))))
+
+(eval-after-load 'multiple-cursors-core
+  '(progn
+     (add-to-list 'mc/cursor-specific-vars 'te/master)
+     (add-to-list 'mc/cursor-specific-vars 'te/mirror)
+     (add-to-list 'mc/cursor-specific-vars 'post-command-hook)))
+
+;; todo: when concluding mc, must remove overlays for vanishing cursors
+;; todo: don't lose overlays when creating new cursor
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;

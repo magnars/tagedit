@@ -4,7 +4,7 @@ A collection of paredit-like functions for editing in html-mode.
 
 ## Installation
 
-I highly recommended installing tagedit through elpa.
+I highly recommend installing tagedit through elpa.
 
 It's available on [marmalade](http://marmalade-repo.org/) and
 [melpa](http://melpa.milkbox.net/):
