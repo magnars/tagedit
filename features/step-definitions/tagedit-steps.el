@@ -12,6 +12,13 @@
           (assert search nil message word (espuds-buffer-contents))
           (if (string-equal "front" pos) (backward-word)))))
 
+(When "^I place the cursor after \"\\(.+\\)\"$"
+      (lambda (arg)
+        (goto-char (point-min))
+        (let ((search (search-forward arg nil t))
+              (message "Can not place cursor after '%s', because there is no such point: '%s'"))
+          (assert search nil message arg (espuds-buffer-contents)))))
+
 (Given "^I activate tagedit experimental features$"
        (lambda ()
          (tagedit-add-experimental-features)))

@@ -139,6 +139,7 @@
   (define-key tagedit-mode-map (kbd "C-}") 'tagedit-forward-barf-tag)
   (define-key tagedit-mode-map (kbd "M-r") 'tagedit-raise-tag)
   (define-key tagedit-mode-map (kbd "M-s") 'tagedit-splice-tag)
+  (define-key tagedit-mode-map (kbd "M-J") 'tagedit-join-tags)
 
   ;; no paredit equivalents
   (define-key tagedit-mode-map (kbd "s-k") 'tagedit-kill-attribute)
@@ -293,6 +294,26 @@
       (te/indent (te/current-tag)))))
 
 ;;;###autoload
+(defun tagedit-join-tags ()
+  (interactive)
+  (unless (and (te/looking-back-at-closing-tag)
+               (te/looking-at-opening-tag))
+    (error "Place cursor between tags to join."))
+  (te/conclude-tag-edit)
+  (save-excursion
+    (let ((first (te/current-tag-behind))
+          (second (te/current-tag-ahead)))
+      (if (s-equals? (aget first :name) (aget second :name))
+          (progn
+            (te/delete-beg-tag second)
+            (te/delete-end-tag first))
+        (let ((name (completing-read "Type after join: "
+                                     (list (aget first :name) (aget second :name)))))
+          (te/change-tag-name second name)
+          (te/change-tag-name first name)
+          (tagedit-join-tags))))))
+
+;;;###autoload
 (defun tagedit-insert-equal ()
   (interactive)
   (if (and (not (te/point-inside-string?))
@@ -390,6 +411,29 @@
 
 (defun te/current-tag ()
   (funcall te/current-tag-fn))
+
+(defun te/current-tag-behind ()
+  (save-excursion
+    (skip-syntax-backward " ")
+    (backward-char)
+    (te/current-tag)))
+
+(defun te/current-tag-ahead ()
+  (save-excursion
+    (skip-syntax-forward " ")
+    (te/current-tag)))
+
+(defun te/change-tag-name (tag name)
+  (save-excursion
+    (unless (te/is-self-closing tag)
+      (goto-char (aget tag :end))
+      (backward-char)
+      (delete-char (- (length (aget tag :name))))
+      (insert name))
+    (goto-char (aget tag :beg))
+    (forward-char)
+    (delete-char (length (aget tag :name)))
+    (insert name)))
 
 (defun te/eligible-for-auto-attribute-insert? ()
   (and (te/point-inside-tag-innards?)
@@ -572,8 +616,16 @@
        (or (< (mark) (overlay-start te/master))
            (> (mark) (overlay-end te/master)))))
 
+(defvar te/tag-name-re "[[:lower:][:upper:]0-9\-:]*")
+
 (defun te/point-at-tag-name ()
-  (looking-back "<[[:lower:][:upper:]0-9\-:]*"))
+  (looking-back (concat "<" te/tag-name-re)))
+
+(defun te/looking-back-at-closing-tag ()
+  (looking-back (concat "</" te/tag-name-re ">\\s *")))
+
+(defun te/looking-at-opening-tag ()
+  (looking-at (concat "\\s *<" te/tag-name-re)))
 
 (defun te/master-string ()
   (buffer-substring (overlay-start te/master)
