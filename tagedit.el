@@ -139,6 +139,7 @@
   (define-key tagedit-mode-map (kbd "C-}") 'tagedit-forward-barf-tag)
   (define-key tagedit-mode-map (kbd "M-r") 'tagedit-raise-tag)
   (define-key tagedit-mode-map (kbd "M-s") 'tagedit-splice-tag)
+  (define-key tagedit-mode-map (kbd "M-S") 'tagedit-split-tag)
   (define-key tagedit-mode-map (kbd "M-J") 'tagedit-join-tags)
 
   ;; no paredit equivalents
@@ -292,6 +293,27 @@
       (te/delete-end-tag parent)
       (te/delete-beg-tag parent)
       (te/indent (te/current-tag)))))
+
+;;;###autoload
+(defun tagedit-split-tag ()
+  (interactive)
+  (te/conclude-tag-edit)
+  (when (te/point-inside-tag-innards?)
+    (error "Can't split here and keep a valid document."))
+  (let* ((tag (te/current-tag))
+         (opening-tag (buffer-substring (aget tag :beg)
+                                        (te/inner-beg tag)))
+         (closing-tag (buffer-substring (te/inner-end tag)
+                                        (aget tag :end)))
+         (multiline? (te/is-multiline tag)))
+    (insert closing-tag)
+    (insert opening-tag)
+    (when multiline?
+      (let ((first (save-excursion (backward-list)
+                                   (te/current-tag-behind)))
+            (second (te/current-tag)))
+        (te/ensure-proper-multiline second)
+        (te/ensure-proper-multiline first)))))
 
 ;;;###autoload
 (defun tagedit-join-tags ()

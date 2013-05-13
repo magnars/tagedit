@@ -7,7 +7,7 @@ end
 
 def run_all_tests
   system('clear')
-  result = run "./run-tests.sh"
+  result = run "./run-tests.sh features/split-tag.feature"
   puts result
 end
 
