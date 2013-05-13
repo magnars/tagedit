@@ -141,6 +141,7 @@
   (define-key tagedit-mode-map (kbd "M-s") 'tagedit-splice-tag)
   (define-key tagedit-mode-map (kbd "M-S") 'tagedit-split-tag)
   (define-key tagedit-mode-map (kbd "M-J") 'tagedit-join-tags)
+  (define-key tagedit-mode-map (kbd "M-?") 'tagedit-convolute-tags)
 
   ;; no paredit equivalents
   (define-key tagedit-mode-map (kbd "s-k") 'tagedit-kill-attribute)
@@ -334,6 +335,37 @@
           (te/change-tag-name second name)
           (te/change-tag-name first name)
           (tagedit-join-tags))))))
+
+;;;###autoload
+(defun tagedit-convolute-tags ()
+  (interactive)
+  (unless (looking-at "<")
+    (error "For stability reasons, place point at the start of the tag when convoluting."))
+  (unless (te/parent-tag (te/parent-tag (te/current-tag)))
+    (error "Can only convolute at depth 3 (tag needs a grandparent)."))
+  (let* ((current (te/current-tag))
+         (parent (te/parent-tag current))
+         (opening-tag (buffer-substring (aget parent :beg)
+                                        (te/inner-beg parent)))
+         (closing-tag (buffer-substring (te/inner-end parent)
+                                        (aget parent :end)))
+         (prev-siblings (buffer-substring (te/inner-beg parent)
+                                          (point))))
+    (save-excursion
+      (te/delete-end-tag parent)
+      (goto-char (te/inner-beg parent))
+      (delete-char (length prev-siblings))
+      (te/delete-beg-tag parent))
+    (setq parent (te/parent-tag (te/current-tag)))
+    (save-excursion
+      (goto-char (aget parent :end))
+      (insert closing-tag)
+      (goto-char (aget parent :beg))
+      (save-excursion (insert prev-siblings))
+      (insert opening-tag)
+      (te/ensure-proper-multiline (te/current-tag))
+      (te/indent (te/current-tag)))
+    (skip-syntax-forward " ")))
 
 ;;;###autoload
 (defun tagedit-insert-equal ()

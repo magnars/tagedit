@@ -27,6 +27,7 @@ This is it at the moment:
  - `tagedit-splice-tag` replaces the parent tag with its contents.
  - `tagedit-join-tags` combines two tags into one, prompting for tagname if they differ.
  - `tagedit-split-tag` splits a tag into two.
+ - `tagedit-convolute-tags` switches the parents of the current tag, along with previous siblings.
  - `tagedit-kill` kills to the end of the line, while preserving the structure.
 
 Not part of paredit:
@@ -54,6 +55,7 @@ Or you can cherry-pick functions and bind them however you want:
 (define-key html-mode-map (kbd "M-s") 'tagedit-splice-tag)
 (define-key html-mode-map (kbd "M-J") 'tagedit-join-tags)
 (define-key html-mode-map (kbd "M-S") 'tagedit-split-tag)
+(define-key html-mode-map (kbd "M-?") 'tagedit-convolute-tags)
 (define-key html-mode-map (kbd "C-k") 'tagedit-kill)
 (define-key html-mode-map (kbd "s-k") 'tagedit-kill-attribute)
 ```
