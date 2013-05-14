@@ -123,7 +123,6 @@
 ;;
 ;; TODO: fix old methods to use a consistent vocabulary
 
-(require 'assoc)
 (require 's)
 (require 'dash)
 (require 'sgml-mode)
@@ -185,9 +184,9 @@
 (defun tagedit-maybe-insert-slash ()
   (interactive)
   (let ((tag (te/current-tag)))
-    (if (and (member (aget tag :name) te/tags-that-cannot-self-close)
+    (if (and (member (te/get tag :name) te/tags-that-cannot-self-close)
              (looking-at ">"))
-        (message "Cannot self-close %ss." (aget tag :name))
+        (message "Cannot self-close %ss." (te/get tag :name))
       (self-insert-command 1))))
 
 ;;;###autoload
@@ -226,11 +225,11 @@
     (let* ((current-tag (te/current-tag))
            (next-sibling (te/next-sibling current-tag)))
       (if next-sibling
-          (te/move-end-tag current-tag (aget next-sibling :end))
+          (te/move-end-tag current-tag (te/get next-sibling :end))
         (let ((parent (te/parent-tag current-tag)))
           (if (not parent)
               (error "Nothing to slurp")
-            (goto-char (aget parent :beg))
+            (goto-char (te/get parent :beg))
             (tagedit-forward-slurp-tag))))))
   (save-excursion (te/ensure-proper-multiline (te/current-tag)))
   (te/indent (te/current-tag)))
@@ -244,7 +243,7 @@
            (last-child (te/last-child current-tag)))
       (if (not last-child)
           (error "Nothing to barf")
-        (goto-char (aget last-child :beg))
+        (goto-char (te/get last-child :beg))
         (skip-syntax-backward " >")
         (te/move-end-tag current-tag (point)))))
   (save-excursion (te/ensure-proper-multiline (te/current-tag)))
@@ -302,10 +301,10 @@
   (when (te/point-inside-tag-innards?)
     (error "Can't split here and keep a valid document."))
   (let* ((tag (te/current-tag))
-         (opening-tag (buffer-substring (aget tag :beg)
+         (opening-tag (buffer-substring (te/get tag :beg)
                                         (te/inner-beg tag)))
          (closing-tag (buffer-substring (te/inner-end tag)
-                                        (aget tag :end)))
+                                        (te/get tag :end)))
          (multiline? (te/is-multiline tag)))
     (insert closing-tag)
     (insert opening-tag)
@@ -326,12 +325,12 @@
   (save-excursion
     (let ((first (te/current-tag-behind))
           (second (te/current-tag-ahead)))
-      (if (s-equals? (aget first :name) (aget second :name))
+      (if (s-equals? (te/get first :name) (te/get second :name))
           (progn
             (te/delete-beg-tag second)
             (te/delete-end-tag first))
         (let ((name (completing-read "Type after join: "
-                                     (list (aget first :name) (aget second :name)))))
+                                     (list (te/get first :name) (te/get second :name)))))
           (te/change-tag-name second name)
           (te/change-tag-name first name)
           (tagedit-join-tags))))))
@@ -345,10 +344,10 @@
     (error "Can only convolute at depth 3 (tag needs a grandparent)."))
   (let* ((current (te/current-tag))
          (parent (te/parent-tag current))
-         (opening-tag (buffer-substring (aget parent :beg)
+         (opening-tag (buffer-substring (te/get parent :beg)
                                         (te/inner-beg parent)))
          (closing-tag (buffer-substring (te/inner-end parent)
-                                        (aget parent :end)))
+                                        (te/get parent :end)))
          (prev-siblings (buffer-substring (te/inner-beg parent)
                                           (point))))
     (save-excursion
@@ -358,9 +357,9 @@
       (te/delete-beg-tag parent))
     (setq parent (te/parent-tag (te/current-tag)))
     (save-excursion
-      (goto-char (aget parent :end))
+      (goto-char (te/get parent :end))
       (insert closing-tag)
-      (goto-char (aget parent :beg))
+      (goto-char (te/get parent :beg))
       (save-excursion (insert prev-siblings))
       (insert opening-tag)
       (te/ensure-proper-multiline (te/current-tag))
@@ -454,6 +453,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defun te/get (list key)
+  (cdr (assoc key list)))
+
 (defun te/skip-tag-forward ()
   (funcall te/skip-tag-forward-fn))
 
@@ -480,13 +482,13 @@
 (defun te/change-tag-name (tag name)
   (save-excursion
     (unless (te/is-self-closing tag)
-      (goto-char (aget tag :end))
+      (goto-char (te/get tag :end))
       (backward-char)
-      (delete-char (- (length (aget tag :name))))
+      (delete-char (- (length (te/get tag :name))))
       (insert name))
-    (goto-char (aget tag :beg))
+    (goto-char (te/get tag :beg))
     (forward-char)
-    (delete-char (length (aget tag :name)))
+    (delete-char (length (te/get tag :name)))
     (insert name)))
 
 (defun te/eligible-for-auto-attribute-insert? ()
@@ -508,12 +510,12 @@
 
 (defun te/has-attribute (attr tag)
   (save-excursion
-    (goto-char (aget tag :beg))
-    (search-forward (concat attr "=\"") (aget tag :end) t)))
+    (goto-char (te/get tag :beg))
+    (search-forward (concat attr "=\"") (te/get tag :end) t)))
 
 (defun te/goto-attribute-end (attr tag)
-  (goto-char (aget tag :beg))
-  (search-forward (concat attr "=") (aget tag :end) t)
+  (goto-char (te/get tag :beg))
+  (search-forward (concat attr "=") (te/get tag :end) t)
   (forward-sexp 1)
   (forward-char -1))
 
@@ -551,11 +553,11 @@
                (te/point-at-tag-name))
       (let ((tag (te/current-tag)))
         (unless (te/is-unmatched-open tag)
-          (te/create-master (1+ (aget tag :beg))
+          (te/create-master (1+ (te/get tag :beg))
                             (te/tag-details-beg tag))
           (unless (te/is-self-closing tag)
-            (te/create-mirror (- (aget tag :end) (length (aget tag :name)) 1)
-                              (- (aget tag :end) 1))))))))
+            (te/create-mirror (- (te/get tag :end) (length (te/get tag :name)) 1)
+                              (- (te/get tag :end) 1))))))))
 
 (defvar tagedit-mode-map nil
   "Keymap for tagedit minor mode.")
@@ -579,7 +581,7 @@
 (defvar te/tags-that-cannot-self-close '("div" "span" "script"))
 
 (defun te/looking-at-tag (tag)
-  (= (point) (aget tag :beg)))
+  (= (point) (te/get tag :beg)))
 
 (defvar te/master nil)
 (defvar te/mirror nil)
@@ -705,8 +707,8 @@
             (te/insert-closing-tag-with-mirror master)))))))
 
 (defun te/insert-closing-tag-with-mirror (master)
-  (let ((name (aget master :name)))
-    (goto-char (aget master :end))
+  (let ((name (te/get master :name)))
+    (goto-char (te/get master :end))
     (insert "</" name ">")
     (te/create-mirror (- (point) 1 (length name))
                       (- (point) 1))))
@@ -719,12 +721,12 @@
   (goto-char (overlay-start te/mirror))
   (delete-char (- (overlay-end te/mirror)
                   (overlay-start te/mirror)))
-  (insert (aget master :name)))
+  (insert (te/get master :name)))
 
 (defun te/tag-ends-on-this-line? (tag)
   (save-excursion
     (= (line-number-at-pos)
-       (progn (goto-char (aget tag :end))
+       (progn (goto-char (te/get tag :end))
               (forward-list -1)
               (line-number-at-pos)))))
 
@@ -749,7 +751,7 @@
          (te/skip-tag-forward))))))
 
 (defun te/kill-to-end-of-tag-contents (tag)
-  (te/kill-to (goto-char (aget tag :end))
+  (te/kill-to (goto-char (te/get tag :end))
               (forward-list -1)))
 
 (defun te/kill-remaining-attributes-on-line ()
@@ -768,15 +770,15 @@
 (defun te/point-inside-tag-innards? ()
   (let ((tag (te/current-tag)))
     (and tag
-         (< (aget tag :beg) (point))
+         (< (te/get tag :beg) (point))
          (<= (point) (te/tag-details-end tag)))))
 
 (defun te/tag-details-beg (tag)
-  (+ (aget tag :beg) 1 (length (aget tag :name))))
+  (+ (te/get tag :beg) 1 (length (te/get tag :name))))
 
 (defun te/tag-details-end (tag)
   (save-excursion
-    (goto-char (aget tag :beg))
+    (goto-char (te/get tag :beg))
     (forward-list 1)
     (if (looking-back "/>")
         (- (point) 2)
@@ -806,9 +808,9 @@
   (while (te/point-inside-string?) (forward-char)))
 
 (defun te/open-self-closing-tag (tag)
-  (when (te/empty-tag-p (aget tag :name))
-    (error "Cannot open empty tag %s." (aget tag :name)))
-  (goto-char (aget tag :end))
+  (when (te/empty-tag-p (te/get tag :name))
+    (error "Cannot open empty tag %s." (te/get tag :name)))
+  (goto-char (te/get tag :end))
   (forward-char -1)
   (when (looking-back "/")
     (delete-char -1))
@@ -817,13 +819,13 @@
 
 (defun te/ensure-proper-multiline (tag)
   (when (te/is-multiline tag)
-    (goto-char (aget tag :end))
+    (goto-char (te/get tag :end))
     (unless (looking-at "$")
       (newline))
     (backward-sexp)
     (unless (looking-back "^\s*")
       (newline))
-    (goto-char (aget tag :beg))
+    (goto-char (te/get tag :beg))
     (unless (looking-back "^\s*")
       (newline))
     (forward-sexp)
@@ -831,11 +833,11 @@
       (newline))))
 
 (defun te/is-multiline (tag)
-  (not (= (line-number-at-pos (aget tag :beg))
-          (line-number-at-pos (aget tag :end)))))
+  (not (= (line-number-at-pos (te/get tag :beg))
+          (line-number-at-pos (te/get tag :end)))))
 
 (defun te/insert-closing-tag (tag)
-  (insert "</" (aget tag :name) ">"))
+  (insert "</" (te/get tag :name) ">"))
 
 (defun te/move-end-tag (tag pos)
   (let ((tag-start-line (line-number-at-pos (point))))
@@ -845,37 +847,37 @@
     (te/insert-closing-tag tag)))
 
 (defun te/delete-end-tag (tag)
-  (goto-char (aget tag :end))
+  (goto-char (te/get tag :end))
   (if (save-excursion ;; end tag is alone on line
         (beginning-of-line)
-        (looking-at (concat "^\s*</" (aget tag :name) ">$")))
+        (looking-at (concat "^\s*</" (te/get tag :name) ">$")))
       (delete-char (- 0 (current-column) 1)) ;; then delete entire line
     (backward-sexp)
-    (delete-region (point) (aget tag :end)))) ;; otherwise just the end tag
+    (delete-region (point) (te/get tag :end)))) ;; otherwise just the end tag
 
 (defun te/delete-beg-tag (tag)
-  (goto-char (aget tag :beg))
+  (goto-char (te/get tag :beg))
   (forward-sexp)
   (if (save-excursion ;; beg tag is alone on line
         (beginning-of-line)
-        (looking-at (concat "^\s*<" (aget tag :name) "[^>]*>$")))
+        (looking-at (concat "^\s*<" (te/get tag :name) "[^>]*>$")))
       (progn ;; then delete entire line
         (delete-char (- 0 (current-column)))
         (delete-char 1))
-    (delete-region (aget tag :beg) (point))))
+    (delete-region (te/get tag :beg) (point))))
 
 (defun te/indent (tag)
   (if tag
-      (indent-region (aget tag :beg)
-                     (aget tag :end))
+      (indent-region (te/get tag :beg)
+                     (te/get tag :end))
     (indent-region (point-min) (point-max))))
 
 (defun te/is-self-closing (tag)
-  (or (eq :t (aget tag :self-closing))
-      (te/empty-tag-p (aget tag :name))))
+  (or (eq :t (te/get tag :self-closing))
+      (te/empty-tag-p (te/get tag :name))))
 
 (defun te/is-unmatched-open (tag)
-  (and (= (te/inner-beg tag) (aget tag :end))
+  (and (= (te/inner-beg tag) (te/get tag :end))
        (not (te/is-self-closing tag))))
 
 (defun te/goto-end-of-attribute ()
@@ -910,10 +912,10 @@ This happens when you press refill-paragraph.")
 (defun te/is-one-line-tag (tag)
   (when tag
     (save-excursion
-      (goto-char (aget tag :beg))
+      (goto-char (te/get tag :beg))
       (= (line-number-at-pos)
          (progn
-           (goto-char (aget tag :end))
+           (goto-char (te/get tag :end))
            (line-number-at-pos))))))
 
 (defun te/one->multi-line-tag (tag)
@@ -927,11 +929,11 @@ This happens when you press refill-paragraph.")
 
 (defun te/parent-tag (tag)
   (save-excursion
-    (goto-char (1- (aget tag :beg)))
+    (goto-char (1- (te/get tag :beg)))
     (let ((parent (te/current-tag)))
       (when (and parent
-                 (not (= (aget parent :beg)
-                         (aget tag :beg))))
+                 (not (= (te/get parent :beg)
+                         (te/get tag :beg))))
         parent))))
 
 (defun te/just-one-blank-line ()
@@ -940,8 +942,8 @@ This happens when you press refill-paragraph.")
   (delete-blank-lines))
 
 (defun te/contents (tag)
-  (buffer-substring (aget tag :beg)
-                    (aget tag :end)))
+  (buffer-substring (te/get tag :beg)
+                    (te/get tag :end)))
 
 (defun te/inner-contents (tag)
   (if (te/is-self-closing tag)
@@ -950,19 +952,19 @@ This happens when you press refill-paragraph.")
                       (te/inner-end tag))))
 
 (defun te/delete (tag)
-  (goto-char (aget tag :beg))
-  (delete-region (aget tag :beg)
-                 (aget tag :end)))
+  (goto-char (te/get tag :beg))
+  (delete-region (te/get tag :beg)
+                 (te/get tag :end)))
 
 (defun te/inner-beg (tag)
   (save-excursion
-    (goto-char (aget tag :beg))
+    (goto-char (te/get tag :beg))
     (forward-list 1)
     (point)))
 
 (defun te/inner-end (tag)
-  (- (aget tag :end)
-     (length (aget tag :name))
+  (- (te/get tag :end)
+     (length (te/get tag :name))
      3))
 
 (defun te/current-text-node ()
@@ -986,7 +988,7 @@ This happens when you press refill-paragraph.")
 (defun te/last-child (tag)
   (unless (te/empty-tag tag)
     (save-excursion
-      (goto-char (aget tag :end))
+      (goto-char (te/get tag :end))
       (backward-sexp)
       (skip-syntax-backward " >")
       (if (looking-back ">")
@@ -1003,13 +1005,13 @@ This happens when you press refill-paragraph.")
     (let ((here (point))
           (parent (te/parent-tag tag)))
       (when parent
-        (goto-char (aget parent :end))
+        (goto-char (te/get parent :end))
         (backward-sexp)
         (= here (point))))))
 
 (defun te/next-sibling (tag)
   (save-excursion
-    (goto-char (aget tag :end))
+    (goto-char (te/get tag :end))
     (skip-syntax-forward " >")
     (unless (eobp)
       (if (looking-at "<")
