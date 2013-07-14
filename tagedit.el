@@ -1023,8 +1023,7 @@ This happens when you press refill-paragraph.")
 (eval-after-load 'multiple-cursors-core
   '(progn
      (add-to-list 'mc/cursor-specific-vars 'te/master)
-     (add-to-list 'mc/cursor-specific-vars 'te/mirror)
-     (add-to-list 'mc/cursor-specific-vars 'post-command-hook)))
+     (add-to-list 'mc/cursor-specific-vars 'te/mirror)))
 
 ;; todo: when concluding mc, must remove overlays for vanishing cursors
 ;; todo: don't lose overlays when creating new cursor
