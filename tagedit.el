@@ -654,6 +654,11 @@
   (remove-hook 'before-revert-hook 'te/conclude-tag-edit t)
   (remove-hook 'post-command-hook 'te/post-command-handler t))
 
+(defmacro te/delete-to (&rest body)
+  `(let ((beg (point)))
+     ,@body
+     (delete-region beg (point))))
+
 (defun te/delete-mirror-end-tag ()
   (save-excursion
     (goto-char (overlay-start te/mirror))
@@ -734,11 +739,6 @@
   `(let ((beg (point)))
      ,@body
      (kill-region beg (point))))
-
-(defmacro te/delete-to (&rest body)
-  `(let ((beg (point)))
-     ,@body
-     (delete-region beg (point))))
 
 (defun te/kill-remaining-tags-on-line ()
   (let ((line (line-number-at-pos)))
