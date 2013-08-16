@@ -511,11 +511,11 @@
 (defun te/has-attribute (attr tag)
   (save-excursion
     (goto-char (te/get tag :beg))
-    (search-forward (concat attr "=\"") (te/get tag :end) t)))
+    (search-forward (concat attr "=\"") (te/inner-beg tag) t)))
 
 (defun te/goto-attribute-end (attr tag)
   (goto-char (te/get tag :beg))
-  (search-forward (concat attr "=") (te/get tag :end) t)
+  (search-forward (concat attr "=") (te/inner-beg tag) t)
   (forward-sexp 1)
   (forward-char -1))
 
