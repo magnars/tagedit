@@ -7,7 +7,8 @@ end
 
 def run_all_tests
   system('clear')
-  result = run "./run-tests.sh features/convolute-tags.feature"
+  result = run "./run-tests.sh"
+  #result = run "./run-tests.sh features/kill.feature"
   puts result
 end
 
