@@ -736,6 +736,8 @@
               (line-number-at-pos)))))
 
 (defmacro te/kill-to (&rest body)
+  (declare (debug (body))
+           (indent 0))
   `(let ((beg (point)))
      ,@body
      (kill-region beg (point))))
@@ -743,12 +745,13 @@
 (defun te/kill-remaining-tags-on-line ()
   (let ((line (line-number-at-pos)))
     (te/kill-to
-     (while (and (= line (line-number-at-pos))
-                 (not (eolp))
-                 (search-forward-regexp "\\(<\\|$\\)" nil t))
-       (when (looking-back "<")
-         (forward-char -1)
-         (te/skip-tag-forward))))))
+      (while (and (= line (line-number-at-pos))
+                  (not (eolp))
+                  (search-forward-regexp "\\(<\\|$\\)" nil t))
+        (when (and (looking-back "<" 1)
+                   (not (looking-at "!--")))
+          (forward-char -1)
+          (te/skip-tag-forward))))))
 
 (defun te/kill-to-end-of-tag-contents (tag)
   (te/kill-to (goto-char (te/get tag :end))
@@ -757,9 +760,9 @@
 (defun te/kill-remaining-attributes-on-line ()
   (let ((line (line-number-at-pos)))
     (te/kill-to
-     (while (and (= line (line-number-at-pos))
-                 (not (looking-at "\\s *$")))
-       (te/goto-end-of-attribute)))))
+      (while (and (= line (line-number-at-pos))
+                  (not (looking-at "\\s *$")))
+        (te/goto-end-of-attribute)))))
 
 (defun te/point-inside-tag-details? ()
   (let ((tag (te/current-tag)))
@@ -780,7 +783,7 @@
   (save-excursion
     (goto-char (te/get tag :beg))
     (forward-list 1)
-    (if (looking-back "/>")
+    (if (looking-back "/>" 2)
         (- (point) 2)
       (- (point) 1))))
 
@@ -790,12 +793,12 @@
 
 (defun te/kill-to-end-of-tag-details ()
   (te/kill-to
-   (goto-char (te/tag-details-end (te/current-tag)))))
+    (goto-char (te/tag-details-end (te/current-tag)))))
 
 (defun te/kill-to-end-of-string ()
   (te/kill-to
-   (te/move-point-forward-out-of-string)
-   (forward-char -1)))
+    (te/move-point-forward-out-of-string)
+    (forward-char -1)))
 
 (defun te/point-inside-string? ()
   (nth 3 (syntax-ppss)))
@@ -812,7 +815,7 @@
     (error "Cannot open empty tag %s." (te/get tag :name)))
   (goto-char (te/get tag :end))
   (forward-char -1)
-  (when (looking-back "/")
+  (when (looking-back "/" 1)
     (delete-char -1))
   (forward-char 1)
   (te/insert-closing-tag tag))
@@ -1062,6 +1065,8 @@ This happens when you press refill-paragraph.")
 (defun te-sgml/get-context ()
   (when (looking-at "<") (forward-char 1))
   (let ((context (car (sgml-get-context))))
+    (when (looking-at "<!--")
+      (setq context (car (sgml-get-context))))
     (when (and context (string= "close" (sgml-tag-type context)))
       (forward-char 1)
       (te/skip-tag-backward)

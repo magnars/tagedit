@@ -111,6 +111,23 @@ Feature: Kill
     And I press "C-k"
     Then I should not see "abc"
 
+  Scenario: Kill a comment inside a tag
+    Given I insert:
+    """
+    <div>
+      <!-- abc -->
+    </div>
+    """
+    When I go to the front of the word "abc"
+    And I press "C-a"
+    And I press "C-k"
+    Then I should see:
+    """
+    <div>
+
+    </div>
+    """
+
   Scenario: Kill a tag
     Given I insert "abc<div></div>"
     When I go to the end of the word "abc"
