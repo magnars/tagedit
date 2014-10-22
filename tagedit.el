@@ -457,11 +457,14 @@
 (defvar te/backward-list-fn 'backward-list
   "Move backward across the previous <opening tag> or </closing tag>.")
 
+(defvar te/forward-sexp-fn 'forward-sexp
+  "Move forward across one balanced expression (sexp).")
+
 (defvar te/backward-sexp-fn 'backward-sexp
   "Move backward across one balanced expression (sexp).")
 
 (defvar te/point-inside-string-fn 'te-sgml/point-inside-string?
-  "Checks if point is currently inside a string.")
+  "Checks if point is currently inside an attribute string.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -483,11 +486,14 @@
 (defun te/forward-list ()
   (funcall te/forward-list-fn))
 
-(defun te/backward-sexp ()
-  (funcall te/backward-sexp-fn))
-
 (defun te/backward-list ()
   (funcall te/backward-list-fn))
+
+(defun te/forward-sexp ()
+  (funcall te/forward-sexp-fn))
+
+(defun te/backward-sexp ()
+  (funcall te/backward-sexp-fn))
 
 (defun te/point-inside-string? ()
   (funcall te/point-inside-string-fn))
@@ -540,7 +546,7 @@
 (defun te/goto-attribute-end (attr tag)
   (goto-char (te/get tag :beg))
   (search-forward (concat attr "=") (te/inner-beg tag) t)
-  (forward-sexp 1)
+  (te/forward-sexp)
   (forward-char -1))
 
 (defun te/insert-attribute (name)
@@ -852,7 +858,7 @@
     (goto-char (te/get tag :beg))
     (unless (looking-back "^\s*")
       (newline))
-    (forward-sexp)
+    (te/forward-sexp)
     (unless (looking-at "$")
       (newline))))
 
@@ -881,7 +887,7 @@
 
 (defun te/delete-beg-tag (tag)
   (goto-char (te/get tag :beg))
-  (forward-sexp)
+  (te/forward-sexp)
   (if (save-excursion ;; beg tag is alone on line
         (beginning-of-line)
         (looking-at (concat "^\s*<" (te/get tag :name) "[^>]*>$")))
@@ -908,15 +914,15 @@
   (search-forward "\"")
   (when (te/point-inside-string?)
     (forward-char -1)
-    (forward-sexp 1)))
+    (te/forward-sexp)))
 
 (defun te/select-attribute ()
   (search-forward "\"")
   (when (te/point-inside-string?)
     (forward-char -1)
-    (forward-sexp 1))
+    (te/forward-sexp))
   (set-mark (point))
-  (forward-sexp -1)
+  (te/backward-sexp)
   (search-backward " ")
   (forward-char 1))
 
