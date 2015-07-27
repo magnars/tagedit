@@ -731,15 +731,16 @@
 
 (defun te/on-master-modification (overlay after? beg end &optional length)
   (when after?
-    (save-excursion
-      (goto-char (overlay-start te/master))
-      (let ((master (te/current-tag)))
-        (if te/mirror
-            (if (te/is-self-closing master)
-                (te/remove-closing-tag-and-mirror master)
-              (te/update-mirror-from-master master))
-          (unless (te/is-self-closing master)
-            (te/insert-closing-tag-with-mirror master)))))))
+    (let ((inhibit-modification-hooks t))
+      (save-excursion
+        (goto-char (overlay-start te/master))
+        (let ((master (te/current-tag)))
+          (if te/mirror
+              (if (te/is-self-closing master)
+                  (te/remove-closing-tag-and-mirror master)
+                (te/update-mirror-from-master master))
+            (unless (te/is-self-closing master)
+              (te/insert-closing-tag-with-mirror master))))))))
 
 (defun te/insert-closing-tag-with-mirror (master)
   (let ((name (te/get master :name)))
