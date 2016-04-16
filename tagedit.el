@@ -141,6 +141,7 @@
   (define-key tagedit-mode-map (kbd "M-S") 'tagedit-split-tag)
   (define-key tagedit-mode-map (kbd "M-J") 'tagedit-join-tags)
   (define-key tagedit-mode-map (kbd "M-?") 'tagedit-convolute-tags)
+  (define-key tagedit-mode-map (kbd "M-'") 'tagedit-goto-tag-content)
 
   ;; no paredit equivalents
   (define-key tagedit-mode-map (kbd "s-k") 'tagedit-kill-attribute)
@@ -164,6 +165,21 @@
   (define-key tagedit-mode-map (kbd ">") nil))
 
 ;;;###autoload
+(defun tagedit-goto-tag-content()
+    "Goto start of content within current tag."
+    (interactive)
+    (let* ((curtag (te/current-tag))
+           (is-closed (equal :f (cdr (assq :self-closing curtag))))
+           (beg (cdr (assq :beg curtag)))
+           (end (cdr (assq :end curtag)))
+           )
+      (when is-closed
+        (goto-char beg)
+        (re-search-forward ">" nil t)
+        )
+      )
+    )
+
 (defun tagedit-insert-gt ()
   (interactive)
   (if (and (te/point-inside-tag-innards?)
