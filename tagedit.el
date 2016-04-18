@@ -168,16 +168,7 @@
 (defun tagedit-goto-tag-content()
     "Goto start of content within current tag."
     (interactive)
-    (let* ((curtag (te/current-tag))
-           (is-closed (equal :f (cdr (assq :self-closing curtag))))
-           (beg (cdr (assq :beg curtag)))
-           (end (cdr (assq :end curtag)))
-           )
-      (when is-closed
-        (goto-char beg)
-        (re-search-forward ">" nil t)
-        )
-      )
+    (goto-char (te/inner-beg (te/current-tag)))
     )
 
 (defun tagedit-insert-gt ()
