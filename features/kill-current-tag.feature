@@ -11,3 +11,22 @@ Feature: Kill current tag
     When I place the cursor after "<p"
     And I press "C-c C-<backspace>"
     Then I should see "<br />"
+
+  Scenario: Kill paired tag with numeric argument
+    Given I insert:
+    """
+    <div>
+      <ul>
+        <li>item 1</li>
+        <li>item 2</li>
+      </ul>
+    </div>
+    """
+    When I place the cursor after "<li>"
+    And I press "M-2 C-c C-<backspace>"
+    Then I should see:
+    """
+    <div>
+      
+    </div>
+    """
