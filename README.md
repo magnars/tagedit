@@ -119,6 +119,12 @@ Run the tests with:
 
     $ ./run-tests.sh
 
+## Contributors
+
+- [yumji](https://github.com/futurist) added `te/kill-current-tag`, `te/goto-tag-match`, `te/goto-tag-begging` and `te/goto-tag-end`
+
+Thanks!
+
 ## License
 
 Copyright (C) 2012 Magnar Sveen
