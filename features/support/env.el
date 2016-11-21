@@ -19,7 +19,7 @@
 (require 'espuds)
 (require 'ert)
 
-(eval-after-load "sgml-mode"
+(eval-after-load 'sgml-mode
   '(progn
      (tagedit-add-experimental-features)
      (tagedit-add-paredit-like-keybindings)))
