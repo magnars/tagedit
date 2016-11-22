@@ -492,12 +492,6 @@
 (defvar te/backward-list-fn 'backward-list
   "Move backward across the previous <opening tag> or </closing tag>.")
 
-(defvar te/forward-sexp-fn 'forward-sexp
-  "Move forward across one balanced expression (sexp).")
-
-(defvar te/backward-sexp-fn 'backward-sexp
-  "Move backward across one balanced expression (sexp).")
-
 (defvar te/point-inside-string-fn 'te-sgml/point-inside-string?
   "Checks if point is currently inside an attribute string.")
 
@@ -523,12 +517,6 @@
 
 (defun te/backward-list ()
   (funcall te/backward-list-fn))
-
-(defun te/forward-sexp ()
-  (funcall te/forward-sexp-fn))
-
-(defun te/backward-sexp ()
-  (funcall te/backward-sexp-fn))
 
 (defun te/point-inside-string? ()
   (funcall te/point-inside-string-fn))
@@ -570,7 +558,7 @@
   (te/goto-attribute-end "id" (te/current-tag))
   (set-mark (point))
   (forward-char 1)
-  (te/backward-sexp)
+  (search-backward "\"" nil t 2)
   (forward-char 1))
 
 (defun te/has-attribute (attr tag)
@@ -581,7 +569,7 @@
 (defun te/goto-attribute-end (attr tag)
   (goto-char (te/get tag :beg))
   (search-forward (concat attr "=") (te/inner-beg tag) t)
-  (te/forward-sexp)
+  (search-forward "\"" nil nil 2)
   (forward-char -1))
 
 (defun te/insert-attribute (name)
@@ -888,13 +876,13 @@
     (goto-char (te/get tag :end))
     (unless (looking-at "$")
       (newline))
-    (te/backward-sexp)
+    (search-backward "</" nil t)
     (unless (looking-back "^\s*")
       (newline))
     (goto-char (te/get tag :beg))
     (unless (looking-back "^\s*")
       (newline))
-    (te/forward-sexp)
+    (search-forward ">" nil t)
     (unless (looking-at "$")
       (newline))))
 
@@ -918,12 +906,12 @@
         (beginning-of-line)
         (looking-at (concat "^\s*</" (te/get tag :name) ">$")))
       (delete-char (- 0 (current-column) 1)) ;; then delete entire line
-    (te/backward-sexp)
+    (search-backward "</" nil t)
     (delete-region (point) (te/get tag :end)))) ;; otherwise just the end tag
 
 (defun te/delete-beg-tag (tag)
   (goto-char (te/get tag :beg))
-  (te/forward-sexp)
+  (search-forward ">")
   (if (save-excursion ;; beg tag is alone on line
         (beginning-of-line)
         (looking-at (concat "^\s*<" (te/get tag :name) "[^>]*>$")))
@@ -949,16 +937,18 @@
 (defun te/goto-end-of-attribute ()
   (search-forward "\"")
   (when (te/point-inside-string?)
-    (forward-char -1)
-    (te/forward-sexp)))
+    (search-forward "\"")))
 
 (defun te/select-attribute ()
   (search-forward "\"")
   (when (te/point-inside-string?)
-    (forward-char -1)
-    (te/forward-sexp))
+    (search-forward "\""))
+
   (set-mark (point))
-  (te/backward-sexp)
+
+  (backward-char)
+  (search-backward "\"")
+
   (search-backward " ")
   (forward-char 1))
 
@@ -1055,7 +1045,7 @@ This happens when you press refill-paragraph.")
   (unless (te/empty-tag tag)
     (save-excursion
       (goto-char (te/get tag :end))
-      (te/backward-sexp)
+      (search-backward "</" nil t)
       (skip-syntax-backward " >")
       (if (looking-back ">")
           (progn
@@ -1072,7 +1062,7 @@ This happens when you press refill-paragraph.")
           (parent (te/parent-tag tag)))
       (when parent
         (goto-char (te/get parent :end))
-        (te/backward-sexp)
+        (search-backward "</" nil t)
         (= here (point))))))
 
 (defun te/next-sibling (tag)
