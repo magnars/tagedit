@@ -127,6 +127,21 @@
 (require 'dash)
 (require 'sgml-mode)
 
+(eval-when-compile
+  (defvar mc/cursor-specific-vars)
+  (defvar mc/cursor-specific-vars))
+
+(defvar tagedit-mode-map (make-sparse-keymap)
+  "Keymap for tagedit minor mode.")
+
+(defvar te/master nil)
+(defvar te/mirror nil)
+
+(make-variable-buffer-local 'te/master)
+(make-variable-buffer-local 'te/mirror)
+
+(defvar tagedit-experimental-features-on? nil)
+
 ;;;###autoload
 (defun tagedit-add-paredit-like-keybindings ()
   (interactive)
@@ -214,6 +229,8 @@
     (te/delete-mirror-end-tag)
     (te/conclude-tag-edit))
   (self-insert-command 1))
+
+(defvar te/tags-that-cannot-self-close '("div" "span" "script"))
 
 ;;;###autoload
 (defun tagedit-maybe-insert-slash ()
@@ -593,8 +610,6 @@
     (forward-char -1))
   (forward-char -1))
 
-(defvar tagedit-experimental-features-on? nil)
-
 (defun te/maybe-turn-on-tag-editing ()
   (when (and tagedit-mode tagedit-experimental-features-on?)
     (add-hook 'before-change-functions 'te/before-change-handler nil t)
@@ -624,12 +639,6 @@
             (te/create-mirror (- (te/get tag :end) (length (te/get tag :name)) 1)
                               (- (te/get tag :end) 1))))))))
 
-(defvar tagedit-mode-map nil
-  "Keymap for tagedit minor mode.")
-
-(unless tagedit-mode-map
-  (setq tagedit-mode-map (make-sparse-keymap)))
-
 (--each '(("C-k" . tagedit-kill)
           ("="   . tagedit-insert-equal)
           ("!"   . tagedit-insert-exclamation-mark)
@@ -643,16 +652,8 @@
       (te/maybe-turn-on-tag-editing)
     (te/turn-off-tag-editing)))
 
-(defvar te/tags-that-cannot-self-close '("div" "span" "script"))
-
 (defun te/looking-at-tag (tag)
   (= (point) (te/get tag :beg)))
-
-(defvar te/master nil)
-(defvar te/mirror nil)
-
-(make-variable-buffer-local 'te/master)
-(make-variable-buffer-local 'te/mirror)
 
 (defface te/master-face
   `((((class color) (background light))
